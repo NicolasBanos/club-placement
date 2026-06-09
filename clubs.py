@@ -111,12 +111,13 @@ clubs = [
 ]
 
 # Print each club to verify the data looks correct
-for club in clubs:
-    print(f"Club: {club['name']}")
-    print(f"  Instructor: {club['instructor']}")
-    print(f"  Grades: {club['grade_min']} - {club['grade_max']}")
-    print(f"  Max Students: {club['max_students']}")
-    print(f"  Room: {club['room_number']}")
-    print(f"  Dismissal: {club['dismissal_location']}")
-    print(f"  Dates: {len(club['meeting_dates'])} meetings")
-    print()
+if __name__ == "__main__":
+    for club in clubs:
+        print(f"Club: {club['name']}")
+        print(f"  Instructor: {club['instructor']}")
+        print(f"  Grades: {club['grade_min']} - {club['grade_max']}")
+        print(f"  Max Students: {club['max_students']}")
+        print(f"  Room: {club['room_number']}")
+        print(f"  Dismissal: {club['dismissal_location']}")
+        print(f"  Dates: {len(club['meeting_dates'])} meetings")
+        print()

@@ -87,12 +87,13 @@ families = [
 ]
 
 # Print each family and their students to verify data looks correct
-for family in families:
-    print(f"Family: {family['family_name']} (ID: {family['family_id']})")
-    print(f"  Parent: {family['parent_name']}")
-    print(f"  Dismissal: {family['dismissal_method']}")
-    print(f"  Students:")
-    for student in family['students']:
-        print(f"    - {student['name']} (Grade {student['grade']})")
-        print(f"      Choices: {student['choices']}")
-    print()
+if __name__ == "__main__":
+    for family in families:
+        print(f"Family: {family['family_name']} (ID: {family['family_id']})")
+        print(f"  Parent: {family['parent_name']}")
+        print(f"  Dismissal: {family['dismissal_method']}")
+        print(f"  Students:")
+        for student in family['students']:
+            print(f"    - {student['name']} (Grade {student['grade']})")
+            print(f"      Choices: {student['choices']}")
+        print()
