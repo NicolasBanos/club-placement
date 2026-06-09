@@ -1,6 +1,6 @@
 # Grade Validation Function
-# Checks if a student's club choices are valid for their grade level
-# Also checks for duplicate choices
+# Validates student choices but no longer blocks the lottery
+# Invalid choices are voided and flagged in the report
 
 def is_grade_valid(grade, club):
     """
@@ -21,45 +21,45 @@ def find_club_by_name(club_name, clubs):
     return None
 
 
-def validate_student_choices(student, clubs):
+def get_valid_choices(student, clubs):
     """
-    Validate all 3 choices for a single student
-    Returns a list of errors found (empty list means no errors)
+    Filter a student's choices down to only valid ones
+    Removes duplicates, non-existent clubs, and grade-inappropriate clubs
+    Returns a clean list of valid choices (up to 3)
     """
-    errors = []
+    valid_choices = []
+    seen = set()
 
-    # Check for duplicate choices
-    if len(student["choices"]) != len(set(student["choices"])):
-        errors.append(f"  ❌ Duplicate club choices detected: {student['choices']}")
+    for choice in student["choices"]:
+        # Skip duplicates
+        if choice in seen:
+            continue
+        seen.add(choice)
 
-    # Check each choice
-    for i, choice in enumerate(student["choices"]):
         club = find_club_by_name(choice, clubs)
 
-        # Check if club exists
+        # Skip non-existent clubs
         if club is None:
-            errors.append(f"  ❌ Choice {i+1} '{choice}' does not exist")
             continue
 
-        # Check if grade is appropriate
+        # Skip grade-inappropriate clubs
         if not is_grade_valid(student["grade"], club):
-            errors.append(
-                f"  ❌ Choice {i+1} '{choice}' is for grades "
-                f"{club['grade_min']}-{club['grade_max']}, "
-                f"but {student['name']} is in grade {student['grade']}"
-            )
+            continue
 
-    return errors
+        valid_choices.append(choice)
+
+    return valid_choices
 
 
 def validate_all_families(families, clubs):
     """
-    Validate every student in every family
-    Prints a full report of all errors found
-    Returns True if no errors, False if errors were found
+    Validate every student in every family.
+    Flags errors for admin awareness but does NOT block the lottery.
+    Invalid choices are voided automatically.
     """
     total_errors = 0
     total_students = 0
+    total_voided = 0
 
     print("=" * 50)
     print("VALIDATION REPORT")
@@ -70,30 +70,54 @@ def validate_all_families(families, clubs):
 
         for student in family["students"]:
             total_students += 1
-            errors = validate_student_choices(student, clubs)
+            student_errors = []
+            seen = set()
 
-            if errors:
+            for i, choice in enumerate(student["choices"]):
+                # Check duplicate
+                if choice in seen:
+                    student_errors.append(
+                        f"  ⚠️  Choice '{choice}' is a duplicate — voided"
+                    )
+                    total_voided += 1
+                    continue
+                seen.add(choice)
+
+                club = find_club_by_name(choice, clubs)
+
+                # Check club exists
+                if club is None:
+                    student_errors.append(
+                        f"  ⚠️  Choice '{choice}' does not exist — voided"
+                    )
+                    total_voided += 1
+                    continue
+
+                # Check grade
+                if not is_grade_valid(student["grade"], club):
+                    student_errors.append(
+                        f"  ⚠️  Choice '{choice}' is for grades "
+                        f"{club['grade_min']}-{club['grade_max']}, "
+                        f"but {student['name']} is grade {student['grade']} — voided"
+                    )
+                    total_voided += 1
+
+            if student_errors:
                 if not family_has_errors:
-                    print(f"\nFamily: {family['family_name']} (ID: {family['family_id']})")
+                    print(f"\nFamily: {family['family_name']} "
+                          f"(ID: {family['family_id']})")
                     family_has_errors = True
 
                 print(f"  Student: {student['name']} (Grade {student['grade']})")
-                for error in errors:
+                for error in student_errors:
                     print(error)
-                total_errors += len(errors)
+                total_errors += len(student_errors)
 
     print("\n" + "=" * 50)
     if total_errors == 0:
         print(f"✅ All {total_students} students passed validation!")
     else:
-        print(f"⚠️  Found {total_errors} errors across {total_students} students")
+        print(f"ℹ️  {total_voided} invalid choices voided across "
+              f"{total_students} students")
+        print(f"ℹ️  Lottery will proceed with valid choices only")
     print("=" * 50)
-
-    return total_errors == 0
-
-
-# Test it with our sample families from families.py
-from families import families
-from clubs import clubs
-
-validate_all_families(families, clubs)

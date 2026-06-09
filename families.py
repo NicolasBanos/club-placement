@@ -24,7 +24,7 @@ families = [
                 "name": "Jake Smith",
                 "grade": 4,
                 "teacher": "Mr. Davis",
-                "choices": ["Mind Matters", "Piecemakers Quilting Club", "Mind Matters"],
+                "choices": ["Mind Matters", "Piecemakers Quilting Club"],  # Only 2 valid clubs for grade 4
                 "assigned_club": None,
                 "waitlist": []
             }
@@ -62,7 +62,7 @@ families = [
                 "name": "Tyler Johnson",
                 "grade": 3,
                 "teacher": "Mrs. Wilson",
-                "choices": ["Mind Matters", "Piecemakers Quilting Club", "Amazing Art Club"],
+                "choices": ["Mind Matters", "Piecemakers Quilting Club"],  # Removed invalid grade choice
                 "assigned_club": None,
                 "waitlist": []
             },
@@ -70,7 +70,7 @@ families = [
                 "name": "Mia Johnson",
                 "grade": 5,
                 "teacher": "Mr. Lee",
-                "choices": ["Piecemakers Quilting Club", "Mind Matters", "Sports Club"],
+                "choices": ["Piecemakers Quilting Club", "Mind Matters"],  # Removed invalid grade choice
                 "assigned_club": None,
                 "waitlist": []
             },
