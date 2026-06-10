@@ -22,7 +22,8 @@ clubs = [
             "2024-12-16"
         ],
         "description": "Students will learn how words, colors, and images work together.",
-        "enrolled": []
+        "enrolled": [],
+        "waitlist": []
     },
     {
         "name": "Mind Matters",
@@ -43,7 +44,8 @@ clubs = [
             "2024-12-16"
         ],
         "description": "Students will be taught how to play board games designed to work the brain.",
-        "enrolled": []
+        "enrolled": [],
+        "waitlist": []
     },
     {
         "name": "Sports Club",
@@ -64,7 +66,8 @@ clubs = [
             "2024-12-16"
         ],
         "description": "Fun and games learning the rules of team sports like basketball, kickball, and volleyball.",
-        "enrolled": []
+        "enrolled": [],
+        "waitlist": []
     },
     {
         "name": "Piecemakers Quilting Club",
@@ -85,7 +88,8 @@ clubs = [
             "2024-12-16"
         ],
         "description": "Students will learn basic sewing skills and complete an individual patchwork quilt.",
-        "enrolled": []
+        "enrolled": [],
+        "waitlist": []
     },
     {
         "name": "Recipe Club",
@@ -106,7 +110,8 @@ clubs = [
             "2024-12-16"
         ],
         "description": "Students will learn the art of cooking through fun recipes made without heat.",
-        "enrolled": []
+        "enrolled": [],
+        "waitlist": []
     }
 ]
 

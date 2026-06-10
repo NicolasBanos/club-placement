@@ -33,22 +33,17 @@ teachers = [
 ]
 
 def get_grade_appropriate_choices(grade):
-    """Return 3 valid club choices based on student grade"""
+    """Return up to 3 valid club choices based on student grade.
+    Never duplicates — if fewer than 3 clubs available, only returns what's valid."""
     if grade <= 2:
         available = k2_clubs.copy()
     else:
         available = grade35_clubs.copy()
-    
-    # If less than 3 available clubs for grade, allow some overlap
-    if len(available) < 3:
-        choices = available.copy()
-        # Fill remaining with same clubs (edge case)
-        while len(choices) < 3:
-            choices.append(random.choice(available))
-    else:
-        choices = random.sample(available, 3)
-    
-    return choices
+
+    # Only return as many choices as there are available clubs
+    # This prevents duplicates for grades 3-5 who only have 2 clubs
+    num_choices = min(3, len(available))
+    return random.sample(available, num_choices)
 
 def generate_student(last_name, grade=None):
     """Generate a single fake student"""
@@ -101,24 +96,25 @@ def generate_families(num_families=500):
     
     return families
 
-# Generate the families
-families = generate_families(500)
 
-# Print a summary
-total_students = sum(len(f["students"]) for f in families)
-one_kid = sum(1 for f in families if len(f["students"]) == 1)
-two_kids = sum(1 for f in families if len(f["students"]) == 2)
-three_kids = sum(1 for f in families if len(f["students"]) == 3)
+if __name__ == "__main__":
+    # Generate the families
+    families = generate_families(500)
+    # Print a summary
+    total_students = sum(len(f["students"]) for f in families)
+    one_kid = sum(1 for f in families if len(f["students"]) == 1)
+    two_kids = sum(1 for f in families if len(f["students"]) == 2)
+    three_kids = sum(1 for f in families if len(f["students"]) == 3)
 
-print(f"Generated {len(families)} families")
-print(f"Total students: {total_students}")
-print(f"Families with 1 student: {one_kid}")
-print(f"Families with 2 students: {two_kids}")
-print(f"Families with 3 students: {three_kids}")
-print()
-print("Sample of first 3 families:")
-for family in families[:3]:
-    print(f"\nFamily: {family['family_name']} (ID: {family['family_id']})")
-    print(f"  Dismissal: {family['dismissal_method']}")
-    for student in family['students']:
-        print(f"  - {student['name']} Grade {student['grade']}: {student['choices']}")
+    print(f"Generated {len(families)} families")
+    print(f"Total students: {total_students}")
+    print(f"Families with 1 student: {one_kid}")
+    print(f"Families with 2 students: {two_kids}")
+    print(f"Families with 3 students: {three_kids}")
+    print()
+    print("Sample of first 3 families:")
+    for family in families[:3]:
+        print(f"\nFamily: {family['family_name']} (ID: {family['family_id']})")
+        print(f"  Dismissal: {family['dismissal_method']}")
+        for student in family['students']:
+            print(f"  - {student['name']} Grade {student['grade']}: {student['choices']}")

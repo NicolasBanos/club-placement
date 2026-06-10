@@ -1,7 +1,9 @@
 from clubs import clubs
-from families import families
+from generate_test_data import generate_families
+families = generate_families(100)
 from lottery import run_lottery
 from validator import validate_all_families, is_grade_valid, find_club_by_name, get_valid_choices
+from waitlist import process_waitlists, print_waitlist_report
 
 def assign_student_to_club(student, club_name, clubs):
     """
@@ -87,6 +89,11 @@ def run_assignment(families, clubs):
 
     print("✅ Assignment complete!")
 
+    # Step 4 - Process waitlists
+    print("\nStep 4: Processing waitlists...")
+    process_waitlists(families, clubs)
+    print("✅ Waitlists processed!")
+
 
 def print_results(families, clubs):
     """
@@ -123,3 +130,4 @@ def print_results(families, clubs):
 if __name__ == "__main__":
     run_assignment(families, clubs)
     print_results(families, clubs)
+    print_waitlist_report(clubs, families)
