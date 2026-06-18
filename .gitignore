@@ -6,3 +6,4 @@ backend/club_placement.db
 backend/venv/
 frontend/node_modules/
 backend/__pycache__/
+mobile/node_modules/
