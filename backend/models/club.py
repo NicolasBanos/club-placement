@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from database.connection import Base
 
@@ -15,8 +15,9 @@ class Club(Base):
     room_number = Column(String, nullable=False)
     dismissal_location = Column(String, nullable=False)
     description = Column(String, nullable=True)
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=False)
 
-    # Connects to the assignments table (which students are in this club)
+    school = relationship("School", back_populates="clubs")
     assignments = relationship("Assignment", back_populates="club")
     waitlist_entries = relationship("Waitlist", back_populates="club")
     meeting_dates = relationship("MeetingDate", back_populates="club")

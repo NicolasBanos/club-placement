@@ -6,6 +6,8 @@ from models.club import Club
 from models.assignment import Assignment
 from models.waitlist import Waitlist
 from models.meeting_date import MeetingDate
+from models.school import School
+#from models.parent_school import ParentSchool
 
 
 def init_db():
