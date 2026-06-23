@@ -20,6 +20,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(Enum(UserRole), nullable=False)
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=True)
+    device_token = Column(String, nullable=True)  # FCM push notification token
 
     school = relationship("School", back_populates="users")
     schools = relationship("ParentSchool", back_populates="parent")
