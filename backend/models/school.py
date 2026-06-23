@@ -14,8 +14,8 @@ class School(Base):
     zip_code = Column(String, nullable=False)
     phone = Column(String, nullable=False)
     email = Column(String, nullable=False)
-    school_code = Column(String, nullable=False, unique=True)  # Unique identifier for the school
+    school_code = Column(String, nullable=False, unique=True)
 
-    # Relationships
     clubs = relationship("Club", back_populates="school")
     users = relationship("User", back_populates="school")
+    parents = relationship("ParentSchool", back_populates="school")

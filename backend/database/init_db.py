@@ -7,7 +7,8 @@ from models.assignment import Assignment
 from models.waitlist import Waitlist
 from models.meeting_date import MeetingDate
 from models.school import School
-#from models.parent_school import ParentSchool
+from models.user import User
+from models.parent_school import ParentSchool
 
 
 def init_db():
