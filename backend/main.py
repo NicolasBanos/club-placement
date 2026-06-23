@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from routers import auth
-
-# Import all models so SQLAlchemy can find them
+from routers import import_data
 from models.user import User
 from models.parent_school import ParentSchool
 from models.school import School
@@ -15,8 +14,8 @@ from models.authorized_pickup import AuthorizedPickup
 
 app = FastAPI(title="ClubsForKids API")
 
-# Include routers
 app.include_router(auth.router)
+app.include_router(import_data.router)
 
 @app.get("/")
 def read_root():
