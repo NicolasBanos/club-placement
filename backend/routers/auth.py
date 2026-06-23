@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from database.connection import get_db
 from models.user import User, UserRole
-from core.auth import hash_password, verify_password, create_access_token
+from core.auth import hash_password, verify_password, create_access_token, get_current_user, require_coordinator, require_teacher, require_parent
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -105,3 +105,33 @@ def get_me(db: Session = Depends(get_db), token: str = Depends(lambda: None)):
     Returns the currently logged in user's info.
     """
     return {"message": "This endpoint will return current user info"}
+
+from core.auth import hash_password, verify_password, create_access_token, get_current_user, require_coordinator, require_teacher, require_parent
+
+@router.get("/coordinator-only")
+def coordinator_only(current_user: User = Depends(require_coordinator)):
+    """Test endpoint — only coordinators can access this"""
+    return {"message": f"Welcome coordinator {current_user.first_name}!"}
+
+
+@router.get("/teacher-only")
+def teacher_only(current_user: User = Depends(require_teacher)):
+    """Test endpoint — only teachers and coordinators can access this"""
+    return {"message": f"Welcome {current_user.role.value} {current_user.first_name}!"}
+
+
+@router.get("/parent-only")
+def parent_only(current_user: User = Depends(require_parent)):
+    """Test endpoint — only parents can access this"""
+    return {"message": f"Welcome parent {current_user.first_name}!"}
+
+
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    """Returns the currently logged in user's info"""
+    return {
+        "first_name": current_user.first_name,
+        "last_name": current_user.last_name,
+        "email": current_user.email,
+        "role": current_user.role.value
+    }
