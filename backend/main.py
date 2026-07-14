@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from routers import auth
 from routers import import_data
 from models.user import User
@@ -13,6 +14,15 @@ from models.meeting_date import MeetingDate
 from models.authorized_pickup import AuthorizedPickup
 
 app = FastAPI(title="ClubsForKids API")
+
+# Allow React frontend to talk to FastAPI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth.router)
 app.include_router(import_data.router)
