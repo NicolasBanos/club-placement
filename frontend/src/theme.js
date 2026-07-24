@@ -1,0 +1,45 @@
+export const theme = {
+  colors: {
+    primary: '#1a5c1a',
+    primaryDark: '#0D3B1E',
+    primaryLight: '#E8F5E9',
+    secondary: '#F9A825',
+    secondaryLight: '#FFF8E1',
+    background: '#F4F7F4',
+    white: '#ffffff',
+    danger: '#ef5350',
+    dangerLight: '#FFEBEE',
+    warning: '#F9A825',
+    warningLight: '#FFF8E1',
+    info: '#1976D2',
+    infoLight: '#E3F2FD',
+    success: '#4CAF50',
+    border: '#e8f0e8',
+    textPrimary: '#1a5c1a',
+    textSecondary: '#555555',
+    textMuted: '#888888',
+    textWhite: '#ffffff',
+    textWhiteMuted: 'rgba(255,255,255,0.5)',
+    textWhiteDim: 'rgba(255,255,255,0.25)',
+    sidebarBg: '#1a5c1a',
+    sidebarBorder: 'rgba(255,255,255,0.08)',
+    sidebarActive: 'rgba(249,168,37,0.15)',
+    sidebarActiveBorder: 'rgba(249,168,37,0.2)',
+  },
+  fonts: {
+    primary: 'Poppins, sans-serif',
+  },
+  borderRadius: {
+    sm: '6px',
+    md: '8px',
+    lg: '12px',
+    xl: '16px',
+    full: '9999px',
+  },
+  shadows: {
+    card: '0 2px 8px rgba(0,0,0,0.06)',
+    modal: '0 4px 20px rgba(0,0,0,0.12)',
+  },
+}
+
+export default theme
