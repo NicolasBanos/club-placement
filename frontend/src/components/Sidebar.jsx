@@ -1,17 +1,18 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Users, Trophy, ClipboardList, List, FileCheck, CalendarCheck, BarChart2, MessageSquare, Upload, LogOut, ChevronDown, UserPlus, School } from 'lucide-react'
+import { Home, Users, Trophy, ClipboardList, List, FileCheck, CalendarCheck, BarChart2, MessageSquare, Upload, LogOut, ChevronDown, School, UserPlus } from 'lucide-react'
 import theme from '../theme'
 
 const coordinatorLinks = [
   { label: 'Dashboard', icon: Home, path: '/coordinator' },
   { label: 'Clubs', icon: School, path: '/coordinator/clubs' },
+  { label: 'Teachers', icon: UserPlus, path: '/coordinator/teachers' },
   { label: 'Lottery', icon: Trophy, path: '/coordinator/lottery' },
   { label: 'Assignments', icon: ClipboardList, path: '/coordinator/assignments' },
   { label: 'Waitlist', icon: List, path: '/coordinator/waitlist' },
   { label: 'Excuses', icon: FileCheck, path: '/coordinator/excuses' },
   { label: 'Attendance', icon: CalendarCheck, path: '/coordinator/attendance' },
   { label: 'Reports', icon: BarChart2, path: '/coordinator/reports' },
-  { label: 'Messages', icon: MessageSquare, path: '/coordinator/messages', badge: 3 },
+  { label: 'Messages', icon: MessageSquare, path: '/coordinator/messages' },
   { label: 'Import Data', icon: Upload, path: '/coordinator/import' },
 ]
 
@@ -79,8 +80,6 @@ function Sidebar() {
 
   return (
     <div style={styles.sidebar}>
-
-      {/* Logo */}
       <div style={styles.logoArea}>
         <div style={styles.owlBadge}>
           <OwlLogo size={28} />
@@ -91,7 +90,6 @@ function Sidebar() {
         </div>
       </div>
 
-      {/* School badge */}
       <div style={styles.schoolBadge}>
         <div style={styles.schoolDot}>
           <OwlLogo size={12} />
@@ -99,7 +97,6 @@ function Sidebar() {
         <span style={styles.schoolName}>Plantation Park Elementary</span>
       </div>
 
-      {/* User */}
       <div style={styles.userArea}>
         <div style={styles.avatar}>{getInitial()}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -109,7 +106,6 @@ function Sidebar() {
         <ChevronDown size={14} color="rgba(255,255,255,0.3)" />
       </div>
 
-      {/* Nav */}
       <nav style={styles.nav}>
         <div style={styles.navLabel}>MAIN MENU</div>
         {getLinks().map((link) => {
@@ -133,12 +129,10 @@ function Sidebar() {
         })}
       </nav>
 
-      {/* Logout */}
       <div style={styles.logoutArea} onClick={handleLogout}>
         <LogOut size={16} color="rgba(255,255,255,0.3)" />
         <span style={styles.logoutText}>Sign out</span>
       </div>
-
     </div>
   )
 }
@@ -154,7 +148,7 @@ const styles = {
   },
   logoArea: {
     padding: '24px 20px 18px',
-    borderBottom: `1px solid ${theme.colors.sidebarBorder}`,
+    borderBottom: '1px solid rgba(255,255,255,0.08)',
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
@@ -211,7 +205,7 @@ const styles = {
   },
   userArea: {
     padding: '14px 20px',
-    borderBottom: `1px solid ${theme.colors.sidebarBorder}`,
+    borderBottom: '1px solid rgba(255,255,255,0.08)',
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
@@ -278,8 +272,8 @@ const styles = {
     padding: '11px 12px',
     borderRadius: '9px',
     cursor: 'pointer',
-    backgroundColor: theme.colors.sidebarActive,
-    border: `1px solid ${theme.colors.sidebarActiveBorder}`,
+    backgroundColor: 'rgba(249,168,37,0.15)',
+    border: '1px solid rgba(249,168,37,0.2)',
   },
   navText: {
     color: 'rgba(255,255,255,0.5)',
@@ -304,7 +298,7 @@ const styles = {
   },
   logoutArea: {
     padding: '16px 20px',
-    borderTop: `1px solid ${theme.colors.sidebarBorder}`,
+    borderTop: '1px solid rgba(255,255,255,0.08)',
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
