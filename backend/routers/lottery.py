@@ -1,0 +1,343 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from database.connection import get_db
+from core.auth import require_coordinator
+from models.user import User, UserRole
+from models.club import Club
+from models.family import Family
+from models.student import Student
+from models.assignment import Assignment
+from models.waitlist import Waitlist
+import random
+
+router = APIRouter(prefix="/lottery", tags=["Lottery"])
+
+
+def get_valid_choices(student, clubs):
+    """Filter student choices to only grade-appropriate clubs"""
+    valid = []
+    seen = set()
+    for choice_name in [student.choice1, student.choice2, student.choice3]:
+        if not choice_name or choice_name in seen:
+            continue
+        seen.add(choice_name)
+        club = next((c for c in clubs if c.name == choice_name), None)
+        if club and club.grade_min <= student.grade <= club.grade_max:
+            valid.append(club)
+    return valid
+
+
+@router.get("/families")
+def get_families(
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """Get all families with their students and choices"""
+    families = db.query(Family).all()
+
+    result = []
+    for family in families:
+        students = db.query(Student).filter(Student.family_id == family.id).all()
+        result.append({
+            "id": family.id,
+            "family_name": family.family_name,
+            "parent_first_name": family.parent_first_name,
+            "parent_last_name": family.parent_last_name,
+            "email": family.email,
+            "dismissal_method": family.dismissal_method,
+            "students": [
+                {
+                    "id": s.id,
+                    "first_name": s.first_name,
+                    "last_name": s.last_name,
+                    "grade": s.grade,
+                    "teacher": s.teacher,
+                    "choice1": s.choice1,
+                    "choice2": s.choice2,
+                    "choice3": s.choice3,
+                    "assigned_club": None,
+                    "waitlisted_clubs": [],
+                }
+                for s in students
+            ]
+        })
+
+    return result
+
+
+@router.post("/run")
+def run_lottery(
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """
+    Run the lottery engine:
+    1. Clear any existing assignments
+    2. Randomize family order
+    3. Process each family using sibling-aware round-based assignment
+    4. Build waitlists for unassigned students
+    """
+    # Clear existing assignments and waitlists
+    db.query(Assignment).delete()
+    db.query(Waitlist).delete()
+    db.commit()
+
+    # Get all clubs and families
+    clubs = db.query(Club).all()
+    families = db.query(Family).all()
+
+    if not families:
+        raise HTTPException(status_code=400, detail="No families found. Add families before running the lottery.")
+
+    if not clubs:
+        raise HTTPException(status_code=400, detail="No clubs found. Set up clubs before running the lottery.")
+
+    # Randomize family order
+    family_order = families.copy()
+    random.shuffle(family_order)
+
+    assigned_count = 0
+    waitlisted_count = 0
+    results = []
+
+    # Process each family
+    for family in family_order:
+        students = db.query(Student).filter(Student.family_id == family.id).all()
+        student_results = []
+
+        # Get valid choices for each student
+        for student in students:
+            student.valid_choices = get_valid_choices(student, clubs)
+            student.assigned_club_id = None
+
+        # Round-based assignment — try choice 1 for all, then choice 2, then choice 3
+        max_rounds = max((len(s.valid_choices) for s in students), default=0)
+
+        for round_num in range(max_rounds):
+            for student in students:
+                if student.assigned_club_id is not None:
+                    continue
+                if round_num >= len(student.valid_choices):
+                    continue
+
+                club = student.valid_choices[round_num]
+
+                # Check if club has space
+                enrolled_count = db.query(Assignment).filter(
+                    Assignment.club_id == club.id
+                ).count()
+
+                if enrolled_count < club.max_students:
+                    # Assign student
+                    from datetime import date
+                    assignment = Assignment(
+                        student_id=student.id,
+                        club_id=club.id,
+                        assigned_date=date.today().isoformat()
+                    )
+                    db.add(assignment)
+                    student.assigned_club_id = club.id
+                    assigned_count += 1
+
+        db.commit()
+
+        # Waitlist unassigned students
+        for student in students:
+            assigned_club_name = None
+            waitlisted_clubs = []
+
+            if student.assigned_club_id:
+                club = next((c for c in clubs if c.id == student.assigned_club_id), None)
+                assigned_club_name = club.name if club else None
+            else:
+                # Add to waitlist for each valid choice
+                for club in student.valid_choices:
+                    position = db.query(Waitlist).filter(
+                        Waitlist.club_id == club.id
+                    ).count() + 1
+
+                    waitlist_entry = Waitlist(
+                        student_id=student.id,
+                        club_id=club.id,
+                        position=position
+                    )
+                    db.add(waitlist_entry)
+                    waitlisted_clubs.append(club.name)
+                    waitlisted_count += 1
+
+                db.commit()
+
+            student_results.append({
+                "id": student.id,
+                "first_name": student.first_name,
+                "last_name": student.last_name,
+                "grade": student.grade,
+                "assigned_club": assigned_club_name,
+                "waitlisted_clubs": waitlisted_clubs,
+            })
+
+        results.append({
+            "family_id": family.id,
+            "family_name": family.family_name,
+            "students": student_results,
+        })
+
+    return {
+        "message": "Lottery completed successfully!",
+        "total_assigned": assigned_count,
+        "total_waitlisted": waitlisted_count,
+        "family_order": [f.id for f in family_order],
+        "results": results,
+    }
+
+
+@router.post("/send-letters")
+def send_letters(
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """
+    Send acceptance and waitlist notifications to all families.
+    Called separately after coordinator reviews results.
+    """
+    families = db.query(Family).all()
+    sent_count = 0
+
+    for family in families:
+        students = db.query(Student).filter(Student.family_id == family.id).all()
+        has_assignment = False
+        has_waitlist = False
+
+        for student in students:
+            assignment = db.query(Assignment).filter(
+                Assignment.student_id == student.id
+            ).first()
+            if assignment:
+                has_assignment = True
+
+            waitlist = db.query(Waitlist).filter(
+                Waitlist.student_id == student.id
+            ).first()
+            if waitlist:
+                has_waitlist = True
+
+        if has_assignment or has_waitlist:
+            # In production this sends real emails/push notifications
+            # For now we log it
+            print(f"Sending notification to {family.email}")
+            sent_count += 1
+
+    return {
+        "message": f"Notifications sent to {sent_count} families!",
+        "sent_count": sent_count,
+    }
+
+@router.post("/seed-test-data")
+def seed_test_data(
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """Add test families and students for lottery testing"""
+    from models.family import Family
+    from models.student import Student
+
+    # Clear existing data
+    db.query(Student).delete()
+    db.query(Family).delete()
+    db.commit()
+
+    # Get club names
+    clubs = db.query(Club).all()
+    if not clubs:
+        raise HTTPException(status_code=400, detail="Add clubs first before seeding test data")
+
+    club_names = [c.name for c in clubs]
+    k2_clubs = [c.name for c in clubs if c.grade_max <= 2]
+    grade35_clubs = [c.name for c in clubs if c.grade_min >= 3]
+
+    # Create test families
+    test_families = [
+        {
+            "family_name": "Smith",
+            "parent_first_name": "John",
+            "parent_last_name": "Smith",
+            "email": "john.smith@test.com",
+            "phone": "754-555-0001",
+            "dismissal_method": "car",
+            "students": [
+                {"first_name": "Emily", "last_name": "Smith", "grade": 1, "teacher": "Mrs. Johnson",
+                 "choices": k2_clubs[:3] if len(k2_clubs) >= 3 else k2_clubs},
+                {"first_name": "Jake", "last_name": "Smith", "grade": 4, "teacher": "Mr. Davis",
+                 "choices": grade35_clubs[:2] if len(grade35_clubs) >= 2 else grade35_clubs},
+            ]
+        },
+        {
+            "family_name": "Garcia",
+            "parent_first_name": "Maria",
+            "parent_last_name": "Garcia",
+            "email": "maria.garcia@test.com",
+            "phone": "754-555-0002",
+            "dismissal_method": "JCC",
+            "students": [
+                {"first_name": "Sofia", "last_name": "Garcia", "grade": 2, "teacher": "Ms. Brown",
+                 "choices": k2_clubs[:3] if len(k2_clubs) >= 3 else k2_clubs},
+            ]
+        },
+        {
+            "family_name": "Johnson",
+            "parent_first_name": "Lisa",
+            "parent_last_name": "Johnson",
+            "email": "lisa.johnson@test.com",
+            "phone": "754-555-0003",
+            "dismissal_method": "walker",
+            "students": [
+                {"first_name": "Tyler", "last_name": "Johnson", "grade": 3, "teacher": "Mrs. Wilson",
+                 "choices": grade35_clubs[:2] if len(grade35_clubs) >= 2 else grade35_clubs},
+                {"first_name": "Mia", "last_name": "Johnson", "grade": 5, "teacher": "Mr. Lee",
+                 "choices": grade35_clubs[:2] if len(grade35_clubs) >= 2 else grade35_clubs},
+                {"first_name": "Owen", "last_name": "Johnson", "grade": 1, "teacher": "Ms. Clark",
+                 "choices": k2_clubs[:3] if len(k2_clubs) >= 3 else k2_clubs},
+            ]
+        },
+    ]
+
+    created_families = 0
+    created_students = 0
+
+    for fam_data in test_families:
+        family = Family(
+            family_name=fam_data["family_name"],
+            parent_first_name=fam_data["parent_first_name"],
+            parent_last_name=fam_data["parent_last_name"],
+            email=fam_data["email"],
+            phone=fam_data["phone"],
+            dismissal_method=fam_data["dismissal_method"],
+            school_id=current_user.school_id,
+        )
+        db.add(family)
+        db.commit()
+        db.refresh(family)
+        created_families += 1
+
+        for s in fam_data["students"]:
+            choices = s["choices"]
+            student = Student(
+                first_name=s["first_name"],
+                last_name=s["last_name"],
+                grade=s["grade"],
+                teacher=s["teacher"],
+                family_id=family.id,
+                choice1=choices[0] if len(choices) > 0 else None,
+                choice2=choices[1] if len(choices) > 1 else None,
+                choice3=choices[2] if len(choices) > 2 else None,
+            )
+            db.add(student)
+            created_students += 1
+
+    db.commit()
+
+    return {
+        "message": f"Test data created successfully!",
+        "families": created_families,
+        "students": created_students,
+    }

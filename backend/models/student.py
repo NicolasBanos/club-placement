@@ -12,6 +12,9 @@ class Student(Base):
     grade = Column(Integer, nullable=False)
     teacher = Column(String, nullable=False)
     family_id = Column(Integer, ForeignKey("families.id"), nullable=False)
+    choice1 = Column(String, nullable=True)
+    choice2 = Column(String, nullable=True)
+    choice3 = Column(String, nullable=True)
 
     family = relationship("Family", back_populates="students")
     assignment = relationship("Assignment", back_populates="student", uselist=False)
