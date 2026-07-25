@@ -19,13 +19,8 @@ def get_dashboard_stats(
     """
     Returns live stats for the coordinator dashboard.
     """
-    # Total assigned students
     total_enrolled = db.query(Assignment).count()
-
-    # Total waitlisted students
     total_waitlisted = db.query(Waitlist).count()
-
-    # Total clubs
     total_clubs = db.query(Club).count()
 
     return {
@@ -78,7 +73,7 @@ def get_next_meeting(
     db: Session = Depends(get_db)
 ):
     """
-    Returns the next upcoming meeting date across all clubs.
+    Returns all clubs meeting on the next upcoming date.
     """
     from datetime import date
     today = date.today().isoformat()
@@ -88,10 +83,25 @@ def get_next_meeting(
         .order_by(MeetingDate.date)\
         .first()
 
-    if next_meeting:
-        return {
-            "date": next_meeting.date,
-            "start_time": next_meeting.start_time,
-            "end_time": next_meeting.end_time,
-        }
-    return {"date": None, "start_time": None, "end_time": None}
+    if not next_meeting:
+        return {"date": None, "meetings": []}
+
+    all_meetings = db.query(MeetingDate)\
+        .filter(MeetingDate.date == next_meeting.date)\
+        .all()
+
+    meetings = []
+    for m in all_meetings:
+        club = db.query(Club).filter(Club.id == m.club_id).first()
+        if club:
+            meetings.append({
+                "club_name": club.name,
+                "room_number": club.room_number,
+                "start_time": m.start_time,
+                "end_time": m.end_time,
+            })
+
+    return {
+        "date": next_meeting.date,
+        "meetings": meetings
+    }

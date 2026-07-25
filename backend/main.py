@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routers import auth
 from routers import import_data
 from routers import dashboard
+from routers import clubs
 from models.user import User
 from models.parent_school import ParentSchool
 from models.school import School
@@ -28,6 +29,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(import_data.router)
 app.include_router(dashboard.router)
+app.include_router(clubs.router)
 
 @app.get("/")
 def read_root():
