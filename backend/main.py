@@ -5,6 +5,7 @@ from routers import import_data
 from routers import dashboard
 from routers import clubs
 from routers import users
+from routers import lottery
 from models.user import User
 from models.parent_school import ParentSchool
 from models.school import School
@@ -32,6 +33,7 @@ app.include_router(import_data.router)
 app.include_router(dashboard.router)
 app.include_router(clubs.router)
 app.include_router(users.router)
+app.include_router(lottery.router)
 
 @app.get("/")
 def read_root():
