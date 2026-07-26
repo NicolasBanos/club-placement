@@ -341,3 +341,66 @@ def seed_test_data(
         "families": created_families,
         "students": created_students,
     }
+
+@router.get("/results")
+def get_results(
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns full assignment results grouped by status.
+    """
+    students = db.query(Student).all()
+
+    assigned = []
+    waitlisted = []
+    unassigned = []
+
+    for student in students:
+        family = db.query(Family).filter(Family.id == student.family_id).first()
+        assignment = db.query(Assignment).filter(
+            Assignment.student_id == student.id
+        ).first()
+
+        student_data = {
+            "id": student.id,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "grade": student.grade,
+            "teacher": student.teacher,
+            "family_name": family.family_name if family else "",
+            "family_email": family.email if family else "",
+            "dismissal_method": family.dismissal_method if family else "",
+        }
+
+        if assignment:
+            club = db.query(Club).filter(Club.id == assignment.club_id).first()
+            student_data["club_name"] = club.name if club else ""
+            student_data["room_number"] = club.room_number if club else ""
+            student_data["dismissal_location"] = club.dismissal_location if club else ""
+            assigned.append(student_data)
+        else:
+            waitlist_entries = db.query(Waitlist).filter(
+                Waitlist.student_id == student.id
+            ).all()
+
+            if waitlist_entries:
+                student_data["waitlist_entries"] = [
+                    {
+                        "club_name": db.query(Club).filter(Club.id == w.club_id).first().name,
+                        "position": w.position
+                    }
+                    for w in waitlist_entries
+                ]
+                waitlisted.append(student_data)
+            else:
+                unassigned.append(student_data)
+
+    return {
+        "assigned": assigned,
+        "waitlisted": waitlisted,
+        "unassigned": unassigned,
+        "total_assigned": len(assigned),
+        "total_waitlisted": len(waitlisted),
+        "total_unassigned": len(unassigned),
+    }
