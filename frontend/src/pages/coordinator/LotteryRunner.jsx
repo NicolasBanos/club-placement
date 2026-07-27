@@ -204,7 +204,7 @@ function LotteryRunner() {
               <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Loading families...</div>
             ) : families.length === 0 ? (
               <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '40px', textAlign: 'center', border: `1px solid ${theme.colors.border}` }}>
-                <div style={{ fontSize: '32px', marginBottom: '12px' }}>🦉</div>
+                <Users size={36} color={theme.colors.primary} style={{ marginBottom: '8px' }} />
                 <div style={{ fontSize: '15px', fontWeight: '600', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>No families yet</div>
                 <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '4px' }}>Families will appear here once parents register and submit their club choices</div>
               </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../../components/Sidebar'
-import { Plus, Trash2, X, Check, Mail, Lock, User } from 'lucide-react'
+import { Plus, Trash2, X, Check, Mail, Lock, User, UserPlus } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
 
@@ -122,7 +122,7 @@ function CreateTeacher() {
 
             {success && (
               <div style={{ background: theme.colors.primaryLight, border: `1px solid ${theme.colors.primary}`, borderRadius: '9px', padding: '12px 16px', color: theme.colors.primary, fontSize: '13px', fontFamily: theme.fonts.primary, fontWeight: '600' }}>
-                ✅ {success}
+                {success}
               </div>
             )}
 
@@ -130,7 +130,7 @@ function CreateTeacher() {
               <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Loading teachers...</div>
             ) : teachers.length === 0 ? (
               <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '40px', textAlign: 'center', border: `1px solid ${theme.colors.border}` }}>
-                <div style={{ fontSize: '32px', marginBottom: '12px' }}>👩‍🏫</div>
+                <UserPlus size={36} color={theme.colors.primary} style={{ marginBottom: '8px' }} />
                 <div style={{ fontSize: '15px', fontWeight: '600', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>No teachers yet</div>
                 <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '4px' }}>Click "Add Teacher" to create your first teacher account</div>
               </div>

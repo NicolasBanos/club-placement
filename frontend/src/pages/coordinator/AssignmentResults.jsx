@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../../components/Sidebar'
-import { CheckCircle, Clock, AlertCircle, Search, Filter } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, Search, Filter, ClipboardList } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
 
@@ -81,7 +81,7 @@ function AssignmentResults() {
             <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Loading results...</div>
           ) : !results ? (
             <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '40px', textAlign: 'center', border: `1px solid ${theme.colors.border}` }}>
-              <div style={{ fontSize: '32px', marginBottom: '12px' }}>🦉</div>
+              <ClipboardList size={36} color={theme.colors.primary} style={{ marginBottom: '8px' }} />
               <div style={{ fontSize: '15px', fontWeight: '600', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>No results yet</div>
               <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '4px' }}>Run the lottery first to see assignment results</div>
             </div>

@@ -4,24 +4,8 @@ import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import api from '../api/axios'
 import theme from '../theme'
 import schoolPhoto from '../assets/school.jpg'
+import ppeLogo from '../assets/ppe-logo.png'
 
-function OwlLogo({ size = 44 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 26 26" fill="none">
-      <circle cx="13" cy="10" r="7" fill="#1a5c1a"/>
-      <circle cx="10" cy="9" r="3" fill="white"/>
-      <circle cx="16" cy="9" r="3" fill="white"/>
-      <circle cx="10.5" cy="9.5" r="1.5" fill="#1a5c1a"/>
-      <circle cx="16.5" cy="9.5" r="1.5" fill="#1a5c1a"/>
-      <circle cx="11" cy="9" r="0.6" fill="white"/>
-      <circle cx="17" cy="9" r="0.6" fill="white"/>
-      <polygon points="12,11 14,11 13,13" fill="#F9A825"/>
-      <path d="M9 6 Q10 4 11 6" stroke="white" strokeWidth="1" fill="none"/>
-      <path d="M15 6 Q16 4 17 6" stroke="white" strokeWidth="1" fill="none"/>
-      <path d="M8 14 Q6 16 8 18 Q10 21 13 22 Q16 21 18 18 Q20 16 18 14 Q16 12 13 13 Q10 12 8 14Z" fill="#2e7d32"/>
-    </svg>
-  )
-}
 
 function Login() {
   const navigate = useNavigate()
@@ -70,7 +54,7 @@ function Login() {
         <div style={styles.overlay} />
         <div style={styles.leftContent}>
           <div style={styles.owlBadge}>
-            <OwlLogo size={44} />
+            <img src={ppeLogo} alt="PPE Logo" style={{ width: '90px', height: '90px', objectFit: 'contain' }} />
           </div>
           <div style={styles.appName}>ClubsForKids</div>
           <div style={styles.tagline}>After school, made easy.</div>
@@ -186,15 +170,16 @@ const styles = {
     textAlign: 'center',
   },
   owlBadge: {
-    backgroundColor: theme.colors.secondary,
-    width: '72px',
-    height: '72px',
-    borderRadius: '20px',
+    backgroundColor: 'white',
+    width: '96px',
+    height: '96px',
+    borderRadius: '24px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: '20px',
     boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+    padding: '4px',
   },
   appName: {
     color: 'white',
