@@ -17,17 +17,45 @@ function LotteryRunner() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const fetchFamilies = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get('/lottery/families')
-        setFamilies(res.data)
+        const [familiesRes, resultsRes] = await Promise.all([
+          api.get('/lottery/families'),
+          api.get('/lottery/results'),
+        ])
+        setFamilies(familiesRes.data)
+
+        // If there are existing assignments load them automatically
+        const hasResults = resultsRes.data.total_assigned > 0 ||
+                          resultsRes.data.total_waitlisted > 0
+
+        if (hasResults) {
+          setResults({
+            total_assigned: resultsRes.data.total_assigned,
+            total_waitlisted: resultsRes.data.total_waitlisted,
+            family_order: [],
+            results: familiesRes.data.map(family => ({
+              family_id: family.id,
+              family_name: family.family_name,
+              students: family.students.map(s => {
+                const assigned = resultsRes.data.assigned.find(a => a.id === s.id)
+                const waitlisted = resultsRes.data.waitlisted.find(w => w.id === s.id)
+                return {
+                  ...s,
+                  assigned_club: assigned?.club_name || null,
+                  waitlisted_clubs: waitlisted?.waitlist_entries?.map(e => e.club_name) || [],
+                }
+              })
+            }))
+          })
+        }
       } catch (err) {
-        console.error('Failed to fetch families:', err)
+        console.error('Failed to fetch data:', err)
       } finally {
         setLoading(false)
       }
     }
-    fetchFamilies()
+    fetchData()
   }, [])
 
   const handleRunLottery = async () => {
@@ -173,40 +201,40 @@ function LotteryRunner() {
                 </div>
               </div>
 
-              {/* Family order */}
-              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}` }}>
-                <div style={{ fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, marginBottom: '12px' }}>
-                  Lottery Order
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {results.family_order.map((familyId, index) => {
-                    const family = families.find(f => f.id === familyId)
-                    return (
-                      <div key={familyId} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
-                          {index + 1}
+              {results.family_order && results.family_order.length > 0 && (
+                <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}` }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, marginBottom: '12px' }}>
+                    Lottery Order
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {results.family_order.map((familyId, index) => {
+                      const family = families.find(f => f.id === familyId)
+                      return (
+                        <div key={familyId} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
+                            {index + 1}
+                          </div>
+                          <span style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary }}>
+                            {family?.family_name} family
+                          </span>
                         </div>
-                        <span style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary }}>
-                          {family?.family_name} family
-                        </span>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
           {/* Main content */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
             {loading ? (
-              <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Loading families...</div>
+              <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Loading...</div>
             ) : families.length === 0 ? (
-              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '40px', textAlign: 'center', border: `1px solid ${theme.colors.border}` }}>
+              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '40px', textAlign: 'center', border: `1px solid ${theme.colors.border}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <Users size={36} color={theme.colors.primary} style={{ marginBottom: '8px' }} />
                 <div style={{ fontSize: '15px', fontWeight: '600', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>No families yet</div>
-                <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '4px' }}>Families will appear here once parents register and submit their club choices</div>
+                <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Families will appear here once parents register and submit their club choices</div>
               </div>
             ) : (
               (results ? results.results : families).map(family => {
@@ -221,7 +249,6 @@ function LotteryRunner() {
                     border: `1px solid ${theme.colors.border}`,
                     overflow: 'hidden',
                   }}>
-                    {/* Family header */}
                     <div
                       onClick={() => toggleFamily(familyId)}
                       style={{
@@ -259,7 +286,6 @@ function LotteryRunner() {
                       </div>
                     </div>
 
-                    {/* Students */}
                     {isExpanded && (
                       <div style={{ borderTop: `1px solid ${theme.colors.border}` }}>
                         {students.map((student, i) => (

@@ -23,7 +23,6 @@ def get_rosters(
 
     result = []
     for club in clubs:
-        # Get enrolled students
         assignments = db.query(Assignment).filter(
             Assignment.club_id == club.id
         ).all()
@@ -43,7 +42,6 @@ def get_rosters(
                 "dismissal_method": family.dismissal_method if family else "",
             })
 
-        # Get waitlisted students
         waitlist = db.query(Waitlist).filter(
             Waitlist.club_id == club.id
         ).order_by(Waitlist.position).all()
@@ -103,10 +101,6 @@ def remove_student(
     db.delete(assignment)
     db.commit()
 
-    # Also remove student from any waitlists they're on
-    db.query(Waitlist).filter(Waitlist.student_id == student_id).delete()
-    db.commit()
-
     # Promote first waitlisted student to pending confirmation
     next_waitlisted = db.query(Waitlist).filter(
         Waitlist.club_id == club_id,
@@ -130,6 +124,7 @@ def confirm_promotion(
     """
     Confirm a pending waitlist promotion.
     Moves student from waitlist to enrolled.
+    Removes student from all other waitlists.
     """
     waitlist_entry = db.query(Waitlist).filter(
         Waitlist.id == waitlist_id,
@@ -139,21 +134,26 @@ def confirm_promotion(
     if not waitlist_entry:
         raise HTTPException(status_code=404, detail="No pending confirmation found")
 
+    student_id = waitlist_entry.student_id
+    club_id = waitlist_entry.club_id
+
     # Create assignment
     new_assignment = Assignment(
-        student_id=waitlist_entry.student_id,
-        club_id=waitlist_entry.club_id,
+        student_id=student_id,
+        club_id=club_id,
         assigned_date=date.today().isoformat()
     )
     db.add(new_assignment)
 
-    # Remove from waitlist
-    db.delete(waitlist_entry)
+    # Remove student from ALL waitlists
+    db.query(Waitlist).filter(
+        Waitlist.student_id == student_id
+    ).delete()
     db.commit()
 
-    # Reorder remaining waitlist positions
+    # Reorder remaining waitlist positions for this club
     remaining = db.query(Waitlist).filter(
-        Waitlist.club_id == new_assignment.club_id
+        Waitlist.club_id == club_id
     ).order_by(Waitlist.position).all()
 
     for i, entry in enumerate(remaining):
@@ -199,3 +199,128 @@ def deny_promotion(
         return {"message": "Promotion denied. Next waitlisted student is now pending confirmation."}
 
     return {"message": "Promotion denied. No more waitlisted students."}
+
+
+@router.post("/promote/{waitlist_id}")
+def promote_student_directly(
+    waitlist_id: int,
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """
+    Directly promote a waitlisted student to fill an available spot.
+    Only works if the club has open spots available.
+    Removes student from all other waitlists.
+    """
+    waitlist_entry = db.query(Waitlist).filter(
+        Waitlist.id == waitlist_id
+    ).first()
+
+    if not waitlist_entry:
+        raise HTTPException(status_code=404, detail="Waitlist entry not found")
+
+    club = db.query(Club).filter(Club.id == waitlist_entry.club_id).first()
+    student_id = waitlist_entry.student_id
+
+    # Check if spot is available
+    enrolled_count = db.query(Assignment).filter(
+        Assignment.club_id == club.id
+    ).count()
+
+    if enrolled_count >= club.max_students:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{club.name} is full. Remove a student first to open a spot."
+        )
+
+    # Create assignment
+    new_assignment = Assignment(
+        student_id=student_id,
+        club_id=waitlist_entry.club_id,
+        assigned_date=date.today().isoformat()
+    )
+    db.add(new_assignment)
+
+    # Remove student from ALL waitlists
+    db.query(Waitlist).filter(
+        Waitlist.student_id == student_id
+    ).delete()
+    db.commit()
+
+    # Reorder remaining waitlist positions for this club
+    remaining = db.query(Waitlist).filter(
+        Waitlist.club_id == club.id
+    ).order_by(Waitlist.position).all()
+
+    for i, entry in enumerate(remaining):
+        entry.position = i + 1
+    db.commit()
+
+    student = db.query(Student).filter(Student.id == student_id).first()
+
+    return {
+        "message": f"{student.first_name} {student.last_name} promoted to {club.name}!"
+    }
+
+
+@router.put("/waitlist/reorder/{waitlist_id}")
+def reorder_waitlist(
+    waitlist_id: int,
+    new_position: int,
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """Change a student's position on the waitlist."""
+    entry = db.query(Waitlist).filter(Waitlist.id == waitlist_id).first()
+
+    if not entry:
+        raise HTTPException(status_code=404, detail="Waitlist entry not found")
+
+    club_id = entry.club_id
+    old_position = entry.position
+
+    all_entries = db.query(Waitlist).filter(
+        Waitlist.club_id == club_id
+    ).order_by(Waitlist.position).all()
+
+    new_position = max(1, min(new_position, len(all_entries)))
+
+    if new_position == old_position:
+        return {"message": "Position unchanged"}
+
+    all_entries.pop(old_position - 1)
+    all_entries.insert(new_position - 1, entry)
+
+    for i, e in enumerate(all_entries):
+        e.position = i + 1
+
+    db.commit()
+    return {"message": f"Moved to position {new_position}"}
+
+
+@router.delete("/waitlist/{waitlist_id}")
+def remove_from_waitlist(
+    waitlist_id: int,
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """Remove a student from a waitlist entirely"""
+    entry = db.query(Waitlist).filter(Waitlist.id == waitlist_id).first()
+
+    if not entry:
+        raise HTTPException(status_code=404, detail="Waitlist entry not found")
+
+    club_id = entry.club_id
+    db.delete(entry)
+    db.commit()
+
+    # Reorder remaining positions
+    remaining = db.query(Waitlist).filter(
+        Waitlist.club_id == club_id
+    ).order_by(Waitlist.position).all()
+
+    for i, e in enumerate(remaining):
+        e.position = i + 1
+    db.commit()
+
+    return {"message": "Student removed from waitlist"}

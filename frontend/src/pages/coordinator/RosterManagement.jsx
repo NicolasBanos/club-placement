@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../../components/Sidebar'
-import { Users, Clock, Check, X, AlertCircle, ClipboardList } from 'lucide-react'
+import { Users, Clock, Check, X, AlertCircle, ClipboardList, ArrowUp, ArrowDown, ChevronUp, ChevronDown } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
 
@@ -12,6 +12,8 @@ function RosterManagement() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState('success')
+  const [activeTab, setActiveTab] = useState('enrolled')
 
   const fetchRosters = async () => {
     try {
@@ -30,15 +32,21 @@ function RosterManagement() {
 
   useEffect(() => { fetchRosters() }, [])
 
+  const showMessage = (text, type = 'success') => {
+    setMessage(text)
+    setMessageType(type)
+    setTimeout(() => setMessage(''), 4000)
+  }
+
   const handleRemoveStudent = async (studentId, studentName) => {
     if (!window.confirm(`Remove ${studentName} from this club? The first waitlisted student will be moved to pending confirmation.`)) return
     setActionLoading(true)
     try {
       const res = await api.delete(`/roster/student/${studentId}`)
-      setMessage(res.data.message)
+      showMessage(res.data.message)
       fetchRosters()
     } catch (err) {
-      setMessage('Failed to remove student')
+      showMessage('Failed to remove student', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -48,10 +56,10 @@ function RosterManagement() {
     setActionLoading(true)
     try {
       const res = await api.post(`/roster/confirm/${waitlistId}`)
-      setMessage(`${studentName} confirmed and added to roster!`)
+      showMessage(`${studentName} confirmed and added to roster!`)
       fetchRosters()
     } catch (err) {
-      setMessage('Failed to confirm promotion')
+      showMessage('Failed to confirm promotion', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -61,16 +69,58 @@ function RosterManagement() {
     setActionLoading(true)
     try {
       const res = await api.delete(`/roster/confirm/${waitlistId}`)
-      setMessage(`${studentName}'s promotion denied. Next student pending.`)
+      showMessage(`${studentName}'s promotion denied.`)
       fetchRosters()
     } catch (err) {
-      setMessage('Failed to deny promotion')
+      showMessage('Failed to deny promotion', 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handlePromote = async (waitlistId, studentName) => {
+    if (!window.confirm(`Directly promote ${studentName} into this club?`)) return
+    setActionLoading(true)
+    try {
+      const res = await api.post(`/roster/promote/${waitlistId}`)
+      showMessage(res.data.message)
+      fetchRosters()
+    } catch (err) {
+      showMessage(err.response?.data?.detail || 'Failed to promote student', 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleRemoveFromWaitlist = async (waitlistId, studentName) => {
+    if (!window.confirm(`Remove ${studentName} from the waitlist entirely?`)) return
+    setActionLoading(true)
+    try {
+      const res = await api.delete(`/roster/waitlist/${waitlistId}`)
+      showMessage(`${studentName} removed from waitlist`)
+      fetchRosters()
+    } catch (err) {
+      showMessage('Failed to remove from waitlist', 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleReorder = async (waitlistId, currentPosition, direction) => {
+    const newPosition = direction === 'up' ? currentPosition - 1 : currentPosition + 1
+    setActionLoading(true)
+    try {
+      await api.put(`/roster/waitlist/reorder/${waitlistId}?new_position=${newPosition}`)
+      fetchRosters()
+    } catch (err) {
+      showMessage('Failed to reorder waitlist', 'error')
     } finally {
       setActionLoading(false)
     }
   }
 
   const pendingCount = selectedClub?.waitlist.filter(w => w.pending_confirmation).length || 0
+  const availableSpots = selectedClub ? selectedClub.max_students - selectedClub.enrolled_count : 0
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -105,7 +155,17 @@ function RosterManagement() {
         </div>
 
         {message && (
-          <div style={{ margin: '16px 28px 0', background: theme.colors.primaryLight, border: `1px solid ${theme.colors.border}`, borderRadius: '9px', padding: '12px 16px', color: theme.colors.primary, fontSize: '13px', fontFamily: theme.fonts.primary, fontWeight: '600' }}>
+          <div style={{
+            margin: '16px 28px 0',
+            background: messageType === 'error' ? theme.colors.dangerLight : theme.colors.primaryLight,
+            border: `1px solid ${messageType === 'error' ? theme.colors.danger : theme.colors.border}`,
+            borderRadius: '9px',
+            padding: '12px 16px',
+            color: messageType === 'error' ? theme.colors.danger : theme.colors.primary,
+            fontSize: '13px',
+            fontFamily: theme.fonts.primary,
+            fontWeight: '600'
+          }}>
             {message}
           </div>
         )}
@@ -123,10 +183,11 @@ function RosterManagement() {
             ) : clubs.map(club => {
               const isSelected = selectedClub?.id === club.id
               const hasPending = club.waitlist.some(w => w.pending_confirmation)
+              const spots = club.max_students - club.enrolled_count
               return (
                 <div
                   key={club.id}
-                  onClick={() => { setSelectedClub(club); setMessage('') }}
+                  onClick={() => { setSelectedClub(club); setMessage(''); setActiveTab('enrolled') }}
                   style={{
                     background: isSelected ? theme.colors.primary : 'white',
                     borderRadius: theme.borderRadius.lg,
@@ -142,6 +203,11 @@ function RosterManagement() {
                   <div style={{ fontSize: '11px', color: isSelected ? 'rgba(255,255,255,0.7)' : theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '3px' }}>
                     {club.enrolled_count}/{club.max_students} enrolled · {club.waitlist.length} waiting
                   </div>
+                  {spots > 0 && (
+                    <div style={{ fontSize: '10px', color: isSelected ? theme.colors.secondary : theme.colors.primary, fontFamily: theme.fonts.primary, fontWeight: '700', marginTop: '2px' }}>
+                      {spots} spot{spots > 1 ? 's' : ''} available
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -152,119 +218,217 @@ function RosterManagement() {
             <div style={{ flex: 1, background: 'white', borderRadius: theme.borderRadius.lg, padding: '40px', textAlign: 'center', border: `1px solid ${theme.colors.border}`, alignSelf: 'flex-start', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <ClipboardList size={36} color={theme.colors.primary} style={{ marginBottom: '8px' }} />
               <div style={{ fontSize: '15px', fontWeight: '600', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>Select a club</div>
-              <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Click a club on the left to view its roster</div>
+              <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Click a club on the left to view its roster and waitlist</div>
             </div>
           ) : (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* Club header */}
-              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}` }}>
-                <div style={{ fontSize: '16px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>{selectedClub.name}</div>
-                <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '4px' }}>
-                  {selectedClub.instructor} · {selectedClub.room_number} · Grades {GRADE_LABELS[selectedClub.grade_min]}–{GRADE_LABELS[selectedClub.grade_max]} · {selectedClub.enrolled_count}/{selectedClub.max_students} enrolled
-                </div>
-              </div>
-
-              {/* Enrolled students */}
-              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}` }}>
-                <div style={{ fontSize: '14px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Users size={15} /> Enrolled Students ({selectedClub.enrolled_count})
-                </div>
-                {selectedClub.enrolled.length === 0 ? (
-                  <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>No students enrolled yet</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {selectedClub.enrolled.map(student => (
-                      <div key={student.student_id} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        padding: '12px',
-                        background: theme.colors.background,
-                        borderRadius: '8px',
-                      }}>
-                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
-                          {student.first_name[0]}{student.last_name[0]}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '13px', fontWeight: '600', color: '#333', fontFamily: theme.fonts.primary }}>
-                            {student.first_name} {student.last_name}
-                            <span style={{ fontSize: '11px', fontWeight: '400', color: theme.colors.textMuted, marginLeft: '8px' }}>
-                              Grade {GRADE_LABELS[student.grade]}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>
-                            {student.family_name} family · {student.teacher} · {student.dismissal_method}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveStudent(student.student_id, `${student.first_name} ${student.last_name}`)}
-                          disabled={actionLoading}
-                          style={{ background: theme.colors.dangerLight, color: theme.colors.danger, border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <X size={12} /> Remove
-                        </button>
-                      </div>
-                    ))}
+              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>{selectedClub.name}</div>
+                  <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '4px' }}>
+                    {selectedClub.instructor} · {selectedClub.room_number} · Grades {GRADE_LABELS[selectedClub.grade_min]}–{GRADE_LABELS[selectedClub.grade_max]}
                   </div>
-                )}
+                </div>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '22px', fontWeight: '800', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>{selectedClub.enrolled_count}/{selectedClub.max_students}</div>
+                    <div style={{ fontSize: '10px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Enrolled</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '22px', fontWeight: '800', color: theme.colors.warning, fontFamily: theme.fonts.primary }}>{selectedClub.waitlist.length}</div>
+                    <div style={{ fontSize: '10px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Waitlisted</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '22px', fontWeight: '800', color: availableSpots > 0 ? theme.colors.primary : theme.colors.danger, fontFamily: theme.fonts.primary }}>{availableSpots}</div>
+                    <div style={{ fontSize: '10px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Available</div>
+                  </div>
+                </div>
               </div>
 
-              {/* Waitlist */}
-              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}` }}>
-                <div style={{ fontSize: '14px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Clock size={15} /> Waitlist ({selectedClub.waitlist.length})
-                </div>
-                {selectedClub.waitlist.length === 0 ? (
-                  <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>No students on waitlist</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {selectedClub.waitlist.map(student => (
-                      <div key={student.waitlist_id} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        padding: '12px',
-                        background: student.pending_confirmation ? theme.colors.warningLight : theme.colors.background,
-                        borderRadius: '8px',
-                        border: student.pending_confirmation ? `1px solid ${theme.colors.warning}` : 'none',
-                      }}>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: student.pending_confirmation ? theme.colors.warning : theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', color: student.pending_confirmation ? 'white' : theme.colors.primary, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
-                          {student.pending_confirmation ? '!' : student.position}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '13px', fontWeight: '600', color: '#333', fontFamily: theme.fonts.primary }}>
-                            {student.first_name} {student.last_name}
-                            {student.pending_confirmation && (
-                              <span style={{ fontSize: '10px', fontWeight: '700', color: theme.colors.warning, marginLeft: '8px', background: 'rgba(249,168,37,0.2)', padding: '1px 6px', borderRadius: '4px' }}>
-                                PENDING CONFIRMATION
+              {/* Tabs */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setActiveTab('enrolled')}
+                  style={{
+                    background: activeTab === 'enrolled' ? theme.colors.primary : 'white',
+                    color: activeTab === 'enrolled' ? 'white' : theme.colors.primary,
+                    border: `1.5px solid ${theme.colors.primary}`,
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    fontFamily: theme.fonts.primary,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}>
+                  <Users size={13} /> Enrolled ({selectedClub.enrolled_count})
+                </button>
+                <button
+                  onClick={() => setActiveTab('waitlist')}
+                  style={{
+                    background: activeTab === 'waitlist' ? theme.colors.warning : 'white',
+                    color: activeTab === 'waitlist' ? 'white' : theme.colors.warning,
+                    border: `1.5px solid ${theme.colors.warning}`,
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    fontFamily: theme.fonts.primary,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}>
+                  <Clock size={13} /> Waitlist ({selectedClub.waitlist.length})
+                  {pendingCount > 0 && (
+                    <span style={{ background: theme.colors.danger, color: 'white', fontSize: '9px', fontWeight: '700', padding: '1px 5px', borderRadius: '8px' }}>
+                      {pendingCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* Enrolled tab */}
+              {activeTab === 'enrolled' && (
+                <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}` }}>
+                  {selectedClub.enrolled.length === 0 ? (
+                    <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textAlign: 'center', padding: '20px 0' }}>No students enrolled yet</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedClub.enrolled.map(student => (
+                        <div key={student.student_id} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '12px',
+                          background: theme.colors.background,
+                          borderRadius: '8px',
+                        }}>
+                          <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
+                            {student.first_name[0]}{student.last_name[0]}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#333', fontFamily: theme.fonts.primary }}>
+                              {student.first_name} {student.last_name}
+                              <span style={{ fontSize: '11px', fontWeight: '400', color: theme.colors.textMuted, marginLeft: '8px' }}>
+                                Grade {GRADE_LABELS[student.grade]}
                               </span>
+                            </div>
+                            <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>
+                              {student.family_name} family · {student.teacher} · {student.dismissal_method}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveStudent(student.student_id, `${student.first_name} ${student.last_name}`)}
+                            disabled={actionLoading}
+                            style={{ background: theme.colors.dangerLight, color: theme.colors.danger, border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <X size={12} /> Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Waitlist tab */}
+              {activeTab === 'waitlist' && (
+                <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}` }}>
+                  {selectedClub.waitlist.length === 0 ? (
+                    <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textAlign: 'center', padding: '20px 0' }}>No students on waitlist</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedClub.waitlist.map((student, index) => (
+                        <div key={student.waitlist_id} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '12px',
+                          background: student.pending_confirmation ? theme.colors.warningLight : theme.colors.background,
+                          borderRadius: '8px',
+                          border: student.pending_confirmation ? `1px solid ${theme.colors.warning}` : 'none',
+                        }}>
+                          {/* Position controls */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+                            <button
+                              onClick={() => handleReorder(student.waitlist_id, student.position, 'up')}
+                              disabled={actionLoading || index === 0}
+                              style={{ background: 'none', border: 'none', cursor: index === 0 ? 'not-allowed' : 'pointer', padding: '1px', opacity: index === 0 ? 0.3 : 1 }}>
+                              <ChevronUp size={14} color={theme.colors.textMuted} />
+                            </button>
+                            <button
+                              onClick={() => handleReorder(student.waitlist_id, student.position, 'down')}
+                              disabled={actionLoading || index === selectedClub.waitlist.length - 1}
+                              style={{ background: 'none', border: 'none', cursor: index === selectedClub.waitlist.length - 1 ? 'not-allowed' : 'pointer', padding: '1px', opacity: index === selectedClub.waitlist.length - 1 ? 0.3 : 1 }}>
+                              <ChevronDown size={14} color={theme.colors.textMuted} />
+                            </button>
+                          </div>
+
+                          {/* Position number */}
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: student.pending_confirmation ? theme.colors.warning : theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', color: student.pending_confirmation ? 'white' : theme.colors.primary, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
+                            {student.pending_confirmation ? '!' : student.position}
+                          </div>
+
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#333', fontFamily: theme.fonts.primary }}>
+                              {student.first_name} {student.last_name}
+                              {student.pending_confirmation && (
+                                <span style={{ fontSize: '10px', fontWeight: '700', color: theme.colors.warning, marginLeft: '8px', background: 'rgba(249,168,37,0.2)', padding: '1px 6px', borderRadius: '4px' }}>
+                                  PENDING CONFIRMATION
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>
+                              {student.family_name} family · Grade {GRADE_LABELS[student.grade]}
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                            {student.pending_confirmation ? (
+                              <>
+                                <button
+                                  onClick={() => handleConfirm(student.waitlist_id, `${student.first_name} ${student.last_name}`)}
+                                  disabled={actionLoading}
+                                  style={{ background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <Check size={12} /> Confirm
+                                </button>
+                                <button
+                                  onClick={() => handleDeny(student.waitlist_id, `${student.first_name} ${student.last_name}`)}
+                                  disabled={actionLoading}
+                                  style={{ background: theme.colors.dangerLight, color: theme.colors.danger, border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <X size={12} /> Deny
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                {availableSpots > 0 && (
+                                  <button
+                                    onClick={() => handlePromote(student.waitlist_id, `${student.first_name} ${student.last_name}`)}
+                                    disabled={actionLoading}
+                                    style={{ background: theme.colors.primaryLight, color: theme.colors.primary, border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <ArrowUp size={12} /> Promote
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleRemoveFromWaitlist(student.waitlist_id, `${student.first_name} ${student.last_name}`)}
+                                  disabled={actionLoading}
+                                  style={{ background: theme.colors.dangerLight, color: theme.colors.danger, border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <X size={12} /> Remove
+                                </button>
+                              </>
                             )}
                           </div>
-                          <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>
-                            {student.family_name} family · Grade {GRADE_LABELS[student.grade]}
-                          </div>
                         </div>
-                        {student.pending_confirmation && (
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button
-                              onClick={() => handleConfirm(student.waitlist_id, `${student.first_name} ${student.last_name}`)}
-                              disabled={actionLoading}
-                              style={{ background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <Check size={12} /> Confirm
-                            </button>
-                            <button
-                              onClick={() => handleDeny(student.waitlist_id, `${student.first_name} ${student.last_name}`)}
-                              disabled={actionLoading}
-                              style={{ background: theme.colors.dangerLight, color: theme.colors.danger, border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <X size={12} /> Deny
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
