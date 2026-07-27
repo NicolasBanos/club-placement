@@ -122,7 +122,7 @@ def run_lottery(
 
                 club = student.valid_choices[round_num]
 
-                # Check if club has space
+                # Check if club has space — query AFTER each commit for accuracy
                 enrolled_count = db.query(Assignment).filter(
                     Assignment.club_id == club.id
                 ).count()
@@ -136,10 +136,9 @@ def run_lottery(
                         assigned_date=date.today().isoformat()
                     )
                     db.add(assignment)
+                    db.commit()  # commit immediately so next student sees accurate count
                     student.assigned_club_id = club.id
                     assigned_count += 1
-
-        db.commit()
 
         # Waitlist unassigned students
         for student in students:
@@ -163,9 +162,11 @@ def run_lottery(
                     )
                     db.add(waitlist_entry)
                     waitlisted_clubs.append(club.name)
-                    waitlisted_count += 1
 
                 db.commit()
+                if student.valid_choices:  # only count once per student
+                    waitlisted_count += 1
+
 
             student_results.append({
                 "id": student.id,
@@ -222,8 +223,6 @@ def send_letters(
                 has_waitlist = True
 
         if has_assignment or has_waitlist:
-            # In production this sends real emails/push notifications
-            # For now we log it
             print(f"Sending notification to {family.email}")
             sent_count += 1
 
@@ -232,6 +231,72 @@ def send_letters(
         "sent_count": sent_count,
     }
 
+
+@router.get("/results")
+def get_results(
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns full assignment results grouped by status.
+    """
+    students = db.query(Student).all()
+
+    assigned = []
+    waitlisted = []
+    unassigned = []
+
+    for student in students:
+        family = db.query(Family).filter(Family.id == student.family_id).first()
+        assignment = db.query(Assignment).filter(
+            Assignment.student_id == student.id
+        ).first()
+
+        student_data = {
+            "id": student.id,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "grade": student.grade,
+            "teacher": student.teacher,
+            "family_name": family.family_name if family else "",
+            "family_email": family.email if family else "",
+            "dismissal_method": family.dismissal_method if family else "",
+        }
+
+        if assignment:
+            club = db.query(Club).filter(Club.id == assignment.club_id).first()
+            student_data["club_name"] = club.name if club else ""
+            student_data["room_number"] = club.room_number if club else ""
+            student_data["dismissal_location"] = club.dismissal_location if club else ""
+            assigned.append(student_data)
+        else:
+            waitlist_entries = db.query(Waitlist).filter(
+                Waitlist.student_id == student.id
+            ).all()
+
+            if waitlist_entries:
+                student_data["waitlist_entries"] = [
+                    {
+                        "club_name": db.query(Club).filter(Club.id == w.club_id).first().name,
+                        "position": w.position
+                    }
+                    for w in waitlist_entries
+                ]
+                waitlisted.append(student_data)
+            else:
+                unassigned.append(student_data)
+
+    return {
+        "assigned": assigned,
+        "waitlisted": waitlisted,
+        "unassigned": unassigned,
+        "total_assigned": len(assigned),
+        "total_waitlisted": len(waitlisted),
+        "total_unassigned": len(unassigned),
+    }
+
+
+# NOTE: Remove this endpoint before production deployment
 @router.post("/seed-test-data")
 def seed_test_data(
     current_user: User = Depends(require_coordinator),
@@ -251,7 +316,6 @@ def seed_test_data(
     if not clubs:
         raise HTTPException(status_code=400, detail="Add clubs first before seeding test data")
 
-    club_names = [c.name for c in clubs]
     k2_clubs = [c.name for c in clubs if c.grade_max <= 2]
     grade35_clubs = [c.name for c in clubs if c.grade_min >= 3]
 
@@ -340,67 +404,4 @@ def seed_test_data(
         "message": f"Test data created successfully!",
         "families": created_families,
         "students": created_students,
-    }
-
-@router.get("/results")
-def get_results(
-    current_user: User = Depends(require_coordinator),
-    db: Session = Depends(get_db)
-):
-    """
-    Returns full assignment results grouped by status.
-    """
-    students = db.query(Student).all()
-
-    assigned = []
-    waitlisted = []
-    unassigned = []
-
-    for student in students:
-        family = db.query(Family).filter(Family.id == student.family_id).first()
-        assignment = db.query(Assignment).filter(
-            Assignment.student_id == student.id
-        ).first()
-
-        student_data = {
-            "id": student.id,
-            "first_name": student.first_name,
-            "last_name": student.last_name,
-            "grade": student.grade,
-            "teacher": student.teacher,
-            "family_name": family.family_name if family else "",
-            "family_email": family.email if family else "",
-            "dismissal_method": family.dismissal_method if family else "",
-        }
-
-        if assignment:
-            club = db.query(Club).filter(Club.id == assignment.club_id).first()
-            student_data["club_name"] = club.name if club else ""
-            student_data["room_number"] = club.room_number if club else ""
-            student_data["dismissal_location"] = club.dismissal_location if club else ""
-            assigned.append(student_data)
-        else:
-            waitlist_entries = db.query(Waitlist).filter(
-                Waitlist.student_id == student.id
-            ).all()
-
-            if waitlist_entries:
-                student_data["waitlist_entries"] = [
-                    {
-                        "club_name": db.query(Club).filter(Club.id == w.club_id).first().name,
-                        "position": w.position
-                    }
-                    for w in waitlist_entries
-                ]
-                waitlisted.append(student_data)
-            else:
-                unassigned.append(student_data)
-
-    return {
-        "assigned": assigned,
-        "waitlisted": waitlisted,
-        "unassigned": unassigned,
-        "total_assigned": len(assigned),
-        "total_waitlisted": len(waitlisted),
-        "total_unassigned": len(unassigned),
     }
