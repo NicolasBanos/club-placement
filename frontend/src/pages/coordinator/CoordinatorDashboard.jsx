@@ -95,7 +95,7 @@ function CoordinatorDashboard() {
         }}>
           <div>
             <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
-              Good morning, {firstName} 👋
+              Good morning, {firstName} 
             </div>
             <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px' }}>
               Plantation Park Elementary · {today}

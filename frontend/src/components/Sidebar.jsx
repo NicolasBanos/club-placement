@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Home, Users, Trophy, ClipboardList, List, FileCheck, CalendarCheck, BarChart2, MessageSquare, Upload, LogOut, ChevronDown, School, UserPlus } from 'lucide-react'
 import theme from '../theme'
+import ppeLogo from '../assets/ppe-logo.png'
 
 const coordinatorLinks = [
   { label: 'Dashboard', icon: Home, path: '/coordinator' },
@@ -8,6 +9,7 @@ const coordinatorLinks = [
   { label: 'Teachers', icon: UserPlus, path: '/coordinator/teachers' },
   { label: 'Lottery', icon: Trophy, path: '/coordinator/lottery' },
   { label: 'Assignments', icon: ClipboardList, path: '/coordinator/assignments' },
+  { label: 'Roster', icon: Users, path: '/coordinator/roster' },
   { label: 'Waitlist', icon: List, path: '/coordinator/waitlist' },
   { label: 'Excuses', icon: FileCheck, path: '/coordinator/excuses' },
   { label: 'Attendance', icon: CalendarCheck, path: '/coordinator/attendance' },
@@ -32,24 +34,6 @@ const parentLinks = [
   { label: 'Pickup Info', icon: ClipboardList, path: '/parent/pickup' },
   { label: 'Messages', icon: MessageSquare, path: '/parent/messages' },
 ]
-
-function OwlLogo({ size = 26 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 26 26" fill="none">
-      <circle cx="13" cy="10" r="7" fill="#1a5c1a"/>
-      <circle cx="10" cy="9" r="3" fill="white"/>
-      <circle cx="16" cy="9" r="3" fill="white"/>
-      <circle cx="10.5" cy="9.5" r="1.5" fill="#1a5c1a"/>
-      <circle cx="16.5" cy="9.5" r="1.5" fill="#1a5c1a"/>
-      <circle cx="11" cy="9" r="0.6" fill="white"/>
-      <circle cx="17" cy="9" r="0.6" fill="white"/>
-      <polygon points="12,11 14,11 13,13" fill="#F9A825"/>
-      <path d="M9 6 Q10 4 11 6" stroke="white" strokeWidth="1" fill="none"/>
-      <path d="M15 6 Q16 4 17 6" stroke="white" strokeWidth="1" fill="none"/>
-      <path d="M8 14 Q6 16 8 18 Q10 21 13 22 Q16 21 18 18 Q20 16 18 14 Q16 12 13 13 Q10 12 8 14Z" fill="#2e7d32"/>
-    </svg>
-  )
-}
 
 function Sidebar() {
   const navigate = useNavigate()
@@ -80,9 +64,11 @@ function Sidebar() {
 
   return (
     <div style={styles.sidebar}>
+
+      {/* Logo */}
       <div style={styles.logoArea}>
         <div style={styles.owlBadge}>
-          <OwlLogo size={28} />
+          <img src={ppeLogo} alt="PPE Logo" style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
         </div>
         <div>
           <div style={styles.appName}>ClubsForKids</div>
@@ -90,13 +76,15 @@ function Sidebar() {
         </div>
       </div>
 
+      {/* School badge */}
       <div style={styles.schoolBadge}>
         <div style={styles.schoolDot}>
-          <OwlLogo size={12} />
+          <img src={ppeLogo} alt="PPE" style={{ width: '14px', height: '14px', objectFit: 'contain' }} />
         </div>
         <span style={styles.schoolName}>Plantation Park Elementary</span>
       </div>
 
+      {/* User */}
       <div style={styles.userArea}>
         <div style={styles.avatar}>{getInitial()}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -106,6 +94,7 @@ function Sidebar() {
         <ChevronDown size={14} color="rgba(255,255,255,0.3)" />
       </div>
 
+      {/* Nav */}
       <nav style={styles.nav}>
         <div style={styles.navLabel}>MAIN MENU</div>
         {getLinks().map((link) => {
@@ -129,6 +118,7 @@ function Sidebar() {
         })}
       </nav>
 
+      {/* Logout */}
       <div style={styles.logoutArea} onClick={handleLogout}>
         <LogOut size={16} color="rgba(255,255,255,0.3)" />
         <span style={styles.logoutText}>Sign out</span>
@@ -156,12 +146,13 @@ const styles = {
   owlBadge: {
     width: '48px',
     height: '48px',
-    backgroundColor: theme.colors.secondary,
+    backgroundColor: 'white',
     borderRadius: '12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    padding: '2px',  // reduced from 4px
   },
   appName: {
     color: 'white',
@@ -190,13 +181,14 @@ const styles = {
   schoolDot: {
     width: '20px',
     height: '20px',
-    backgroundColor: theme.colors.secondary,
+    backgroundColor: 'white',
     borderRadius: '5px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
     overflow: 'hidden',
+    padding: '2px',
   },
   schoolName: {
     color: 'rgba(255,255,255,0.7)',

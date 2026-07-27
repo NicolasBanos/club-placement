@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey
+from sqlalchemy import Column, Integer, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from database.connection import Base
 
@@ -10,6 +10,7 @@ class Waitlist(Base):
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     club_id = Column(Integer, ForeignKey("clubs.id"), nullable=False)
     position = Column(Integer, nullable=False)
+    pending_confirmation = Column(Boolean, default=False, nullable=False)
 
     student = relationship("Student", back_populates="waitlist_entries")
     club = relationship("Club", back_populates="waitlist_entries")

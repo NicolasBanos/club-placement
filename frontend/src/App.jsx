@@ -5,6 +5,7 @@ import ClubSetup from './pages/coordinator/ClubSetup'
 import CreateTeacher from './pages/coordinator/CreateTeacher'
 import LotteryRunner from './pages/coordinator/LotteryRunner'
 import AssignmentResults from './pages/coordinator/AssignmentResults'
+import RosterManagement from './pages/coordinator/RosterManagement'
 import TeacherDashboard from './pages/teacher/TeacherDashboard'
 import ParentDashboard from './pages/parent/ParentDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -55,6 +56,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['coordinator']}>
               <AssignmentResults />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/coordinator/roster"
+          element={
+            <ProtectedRoute allowedRoles={['coordinator']}>
+              <RosterManagement />
             </ProtectedRoute>
           }
         />
