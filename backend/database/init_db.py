@@ -9,6 +9,7 @@ from models.meeting_date import MeetingDate
 from models.school import School
 from models.user import User
 from models.parent_school import ParentSchool
+from models.attendance import Attendance
 
 
 def init_db():
