@@ -7,6 +7,7 @@ from models.club import Club
 from models.assignment import Assignment
 from models.waitlist import Waitlist
 from models.meeting_date import MeetingDate
+from models.student import Student
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -22,11 +23,25 @@ def get_dashboard_stats(
     total_enrolled = db.query(Assignment).count()
     total_waitlisted = db.query(Waitlist).count()
     total_clubs = db.query(Club).count()
+    total_students = db.query(Student).count()
+
+    # Unassigned = students with no assignment AND not on any waitlist
+    assigned_ids = {a.student_id for a in db.query(Assignment.student_id).all()}
+    waitlisted_ids = {w.student_id for w in db.query(Waitlist.student_id).all()}
+    placed_ids = assigned_ids | waitlisted_ids
+    total_unassigned = db.query(Student).filter(~Student.id.in_(placed_ids)).count() if placed_ids else total_students
+
+    # Clubs at capacity
+    clubs = db.query(Club).all()
+    clubs_at_capacity = sum(1 for c in clubs if len(c.assignments) >= c.max_students)
 
     return {
         "total_enrolled": total_enrolled,
         "total_waitlisted": total_waitlisted,
         "total_clubs": total_clubs,
+        "total_students": total_students,
+        "total_unassigned": total_unassigned,
+        "clubs_at_capacity": clubs_at_capacity,
         "pending_excuses": 0,
         "unread_messages": 0,
     }
