@@ -9,6 +9,7 @@ import RosterManagement from './pages/coordinator/RosterManagement'
 import TeacherDashboard from './pages/teacher/TeacherDashboard'
 import ParentDashboard from './pages/parent/ParentDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
+import ExcuseApproval from './pages/coordinator/ExcuseApproval'
 
 function App() {
   return (
@@ -64,6 +65,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['coordinator']}>
               <RosterManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/coordinator/excuses"
+          element={
+            <ProtectedRoute allowedRoles={['coordinator']}>
+              <ExcuseApproval />
             </ProtectedRoute>
           }
         />
