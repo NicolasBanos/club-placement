@@ -11,6 +11,7 @@ import ParentDashboard from './pages/parent/ParentDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import ExcuseApproval from './pages/coordinator/ExcuseApproval'
 import AttendanceOverview from './pages/coordinator/AttendanceOverview'
+import ClubSummaryReport from './pages/coordinator/ClubSummaryReport'
 
 function App() {
   return (
@@ -82,6 +83,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['coordinator']}>
               <AttendanceOverview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/coordinator/reports"
+          element={
+            <ProtectedRoute allowedRoles={['coordinator']}>
+              <ClubSummaryReport />
             </ProtectedRoute>
           }
         />
