@@ -12,6 +12,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import ExcuseApproval from './pages/coordinator/ExcuseApproval'
 import AttendanceOverview from './pages/coordinator/AttendanceOverview'
 import ClubSummaryReport from './pages/coordinator/ClubSummaryReport'
+import SpreadsheetUpload from './pages/coordinator/SpreadsheetUpload'
 
 function App() {
   return (
@@ -91,6 +92,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['coordinator']}>
               <ClubSummaryReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/coordinator/import"
+          element={
+            <ProtectedRoute allowedRoles={['coordinator']}>
+              <SpreadsheetUpload />
             </ProtectedRoute>
           }
         />
