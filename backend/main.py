@@ -17,6 +17,8 @@ from models.assignment import Assignment
 from models.waitlist import Waitlist
 from models.meeting_date import MeetingDate
 from models.authorized_pickup import AuthorizedPickup
+from routers import attendance
+from models.attendance import Attendance
 
 app = FastAPI(title="ClubsForKids API")
 
@@ -36,6 +38,7 @@ app.include_router(clubs.router)
 app.include_router(users.router)
 app.include_router(lottery.router)
 app.include_router(roster.router)
+app.include_router(attendance.router)
 
 @app.get("/")
 def read_root():
