@@ -259,3 +259,164 @@ def excuse_history(
         })
 
     return result
+
+# ---------- Coordinator: list all distinct meeting dates (for dropdown) ----------
+
+@router.get("/dates")
+def list_meeting_dates(
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """Distinct calendar dates across all clubs, newest first, for the overview dropdown."""
+    rows = db.query(MeetingDate.date).distinct().all()
+    dates = sorted({r[0] for r in rows}, reverse=True)
+    return dates
+
+
+# ---------- Coordinator: attendance overview for a date ----------
+
+@router.get("/overview")
+def attendance_overview(
+    date: str,
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """
+    For a given calendar date, show every club meeting that date with its full
+    enrolled roster and each student's attendance status:
+      present | absent | excused | unmarked
+    Also includes each student's total unexcused absences across all dates,
+    so the frontend can flag students with 2+ in red.
+    """
+    # All meeting-date rows on this calendar date (one per club that meets that day)
+    meetings = db.query(MeetingDate).filter(MeetingDate.date == date).all()
+    if not meetings:
+        return []
+
+    result = []
+    for meeting in meetings:
+        club = db.query(Club).filter(Club.id == meeting.club_id).first()
+        if not club:
+            continue
+
+        # Enrolled students = those with an assignment to this club
+        assignments = db.query(Assignment).filter(
+            Assignment.club_id == club.id
+        ).all()
+
+        students_out = []
+        for a in assignments:
+            student = db.query(Student).filter(Student.id == a.student_id).first()
+            if not student:
+                continue
+
+            record = db.query(Attendance).filter(
+                Attendance.student_id == student.id,
+                Attendance.meeting_date_id == meeting.id
+            ).first()
+
+            if record is None:
+                display_status = "unmarked"
+            elif record.status == "present":
+                display_status = "present"
+            elif record.status == "absent" and record.excuse_status == "approved":
+                display_status = "excused"
+            else:
+                display_status = "absent"
+
+            # Total unexcused absences across ALL dates for this student
+            unexcused = db.query(Attendance).filter(
+                Attendance.student_id == student.id,
+                Attendance.status == "absent",
+                Attendance.excuse_status != "approved"
+            ).count()
+
+            students_out.append({
+                "student_id": student.id,
+                "first_name": student.first_name,
+                "last_name": student.last_name,
+                "grade": student.grade,
+                "teacher": student.teacher,
+                "status": display_status,
+                "late_pickup": record.late_pickup if record else False,
+                "unexcused_absences": unexcused,
+            })
+
+        students_out.sort(key=lambda s: (s["last_name"], s["first_name"]))
+
+        result.append({
+            "club_id": club.id,
+            "club_name": club.name,
+            "instructor": club.instructor,
+            "room_number": club.room_number,
+            "meeting_date_id": meeting.id,
+            "students": students_out,
+        })
+
+    return result
+
+
+# ---------- Coordinator: override a student's attendance status ----------
+
+class AttendanceOverride(BaseModel):
+    student_id: int
+    meeting_date_id: int
+    status: str            # "present" | "absent" | "excused"
+
+
+@router.put("/override")
+def override_attendance(
+    override: AttendanceOverride,
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """
+    Coordinator manually sets a student's attendance status for a meeting date.
+    Overrides whatever a teacher submitted. Upserts the record.
+      present -> status present, excuse cleared
+      absent  -> status absent, excuse_status none (unexcused)
+      excused -> status absent, excuse_status approved (coordinator-approved)
+    """
+    if override.status not in ("present", "absent", "excused"):
+        raise HTTPException(status_code=400, detail=f"Invalid status '{override.status}'")
+
+    meeting = db.query(MeetingDate).filter(
+        MeetingDate.id == override.meeting_date_id
+    ).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting date not found")
+
+    record = db.query(Attendance).filter(
+        Attendance.student_id == override.student_id,
+        Attendance.meeting_date_id == override.meeting_date_id
+    ).first()
+
+    if record is None:
+        record = Attendance(
+            student_id=override.student_id,
+            meeting_date_id=override.meeting_date_id,
+            status="present",
+            late_pickup=False,
+            excuse_status="none",
+        )
+        db.add(record)
+
+    if override.status == "present":
+        record.status = "present"
+        record.excuse_status = "none"
+        record.excuse_reason = None
+        record.reviewed_at = None
+        record.reviewed_by = None
+    elif override.status == "absent":
+        record.status = "absent"
+        record.excuse_status = "none"
+        record.reviewed_at = None
+        record.reviewed_by = None
+    else:  # excused
+        record.status = "absent"
+        record.excuse_status = "approved"
+        record.reviewed_at = datetime.utcnow().isoformat()
+        record.reviewed_by = current_user.id
+
+    db.commit()
+    return {"message": "Attendance updated."}

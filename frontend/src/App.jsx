@@ -10,6 +10,7 @@ import TeacherDashboard from './pages/teacher/TeacherDashboard'
 import ParentDashboard from './pages/parent/ParentDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import ExcuseApproval from './pages/coordinator/ExcuseApproval'
+import AttendanceOverview from './pages/coordinator/AttendanceOverview'
 
 function App() {
   return (
@@ -73,6 +74,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['coordinator']}>
               <ExcuseApproval />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/coordinator/attendance"
+          element={
+            <ProtectedRoute allowedRoles={['coordinator']}>
+              <AttendanceOverview />
             </ProtectedRoute>
           }
         />
