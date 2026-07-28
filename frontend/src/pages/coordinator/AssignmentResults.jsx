@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../../components/Sidebar'
-import { CheckCircle, Clock, AlertCircle, Search, Filter, ClipboardList } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, Search, Filter, UserPlus } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
 
@@ -12,20 +12,51 @@ function AssignmentResults() {
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('assigned')
   const [filterClub, setFilterClub] = useState('all')
+  const [clubs, setClubs] = useState([])
+  const [assigningStudent, setAssigningStudent] = useState(null)
+  const [selectedClubId, setSelectedClubId] = useState('')
+  const [assigning, setAssigning] = useState(false)
+  const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState('success')
 
-  useEffect(() => {
-    const fetchResults = async () => {
-      try {
-        const res = await api.get('/lottery/results')
-        setResults(res.data)
-      } catch (err) {
-        console.error('Failed to fetch results:', err)
-      } finally {
-        setLoading(false)
-      }
+  const fetchData = async () => {
+    try {
+      const [resultsRes, clubsRes] = await Promise.all([
+        api.get('/lottery/results'),
+        api.get('/clubs/'),
+      ])
+      setResults(resultsRes.data)
+      setClubs(clubsRes.data)
+    } catch (err) {
+      console.error('Failed to fetch results:', err)
+    } finally {
+      setLoading(false)
     }
-    fetchResults()
-  }, [])
+  }
+
+  useEffect(() => { fetchData() }, [])
+
+  const showMessage = (text, type = 'success') => {
+    setMessage(text)
+    setMessageType(type)
+    setTimeout(() => setMessage(''), 4000)
+  }
+
+  const handleAssign = async (studentId) => {
+    if (!selectedClubId) return
+    setAssigning(true)
+    try {
+      const res = await api.post(`/roster/assign/${studentId}?club_id=${selectedClubId}`)
+      showMessage(res.data.message)
+      setAssigningStudent(null)
+      setSelectedClubId('')
+      fetchData()
+    } catch (err) {
+      showMessage(err.response?.data?.detail || 'Failed to assign student', 'error')
+    } finally {
+      setAssigning(false)
+    }
+  }
 
   const getClubOptions = () => {
     if (!results) return []
@@ -69,10 +100,26 @@ function AssignmentResults() {
               Assignment Results
             </div>
             <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px' }}>
-              Review all lottery assignments before finalizing
+              Review all lottery assignments
             </div>
           </div>
         </div>
+
+        {message && (
+          <div style={{
+            margin: '16px 28px 0',
+            background: messageType === 'error' ? theme.colors.dangerLight : theme.colors.primaryLight,
+            border: `1px solid ${messageType === 'error' ? theme.colors.danger : theme.colors.border}`,
+            borderRadius: '9px',
+            padding: '12px 16px',
+            color: messageType === 'error' ? theme.colors.danger : theme.colors.primary,
+            fontSize: '13px',
+            fontFamily: theme.fonts.primary,
+            fontWeight: '600'
+          }}>
+            {message}
+          </div>
+        )}
 
         {/* Content */}
         <div style={{ flex: 1, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -80,10 +127,10 @@ function AssignmentResults() {
           {loading ? (
             <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Loading results...</div>
           ) : !results ? (
-            <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '40px', textAlign: 'center', border: `1px solid ${theme.colors.border}` }}>
-              <ClipboardList size={36} color={theme.colors.primary} style={{ marginBottom: '8px' }} />
+            <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '40px', textAlign: 'center', border: `1px solid ${theme.colors.border}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <CheckCircle size={36} color={theme.colors.primary} style={{ marginBottom: '8px' }} />
               <div style={{ fontSize: '15px', fontWeight: '600', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>No results yet</div>
-              <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '4px' }}>Run the lottery first to see assignment results</div>
+              <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Run the lottery first to see assignment results</div>
             </div>
           ) : (
             <>
@@ -184,56 +231,141 @@ function AssignmentResults() {
                       padding: '16px 20px',
                       border: `1px solid ${theme.colors.border}`,
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '16px',
+                      flexDirection: 'column',
+                      gap: '12px',
                     }}>
-                      {/* Status indicator */}
-                      <div style={{
-                        width: '4px',
-                        borderRadius: '4px',
-                        alignSelf: 'stretch',
-                        backgroundColor: activeTab === 'assigned' ? theme.colors.primary : activeTab === 'waitlisted' ? theme.colors.warning : theme.colors.danger,
-                        flexShrink: 0,
-                      }} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        {/* Status indicator */}
+                        <div style={{
+                          width: '4px',
+                          borderRadius: '4px',
+                          alignSelf: 'stretch',
+                          backgroundColor: activeTab === 'assigned' ? theme.colors.primary : activeTab === 'waitlisted' ? theme.colors.warning : theme.colors.danger,
+                          flexShrink: 0,
+                        }} />
 
-                      {/* Student info */}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>
-                            {student.first_name} {student.last_name}
-                          </span>
-                          <span style={{ background: theme.colors.primaryLight, color: theme.colors.primary, fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '4px', fontFamily: theme.fonts.primary }}>
-                            Grade {GRADE_LABELS[student.grade]}
-                          </span>
+                        {/* Student info */}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>
+                              {student.first_name} {student.last_name}
+                            </span>
+                            <span style={{ background: theme.colors.primaryLight, color: theme.colors.primary, fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '4px', fontFamily: theme.fonts.primary }}>
+                              Grade {GRADE_LABELS[student.grade]}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>
+                            {student.family_name} family · {student.teacher} · {student.dismissal_method}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>
-                          {student.family_name} family · {student.teacher} · {student.dismissal_method}
+
+                        {/* Assignment info */}
+                        <div style={{ textAlign: 'right' }}>
+                          {activeTab === 'assigned' && (
+                            <>
+                              <div style={{ fontSize: '13px', fontWeight: '600', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>{student.club_name}</div>
+                              <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>{student.room_number} · {student.dismissal_location}</div>
+                            </>
+                          )}
+                          {activeTab === 'waitlisted' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-end' }}>
+                              {student.waitlist_entries?.map((entry, i) => (
+                                <div key={i} style={{ fontSize: '11px', color: theme.colors.warning, fontFamily: theme.fonts.primary, fontWeight: '600' }}>
+                                  #{entry.position} on {entry.club_name}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {activeTab === 'unassigned' && (
+                            <button
+                              onClick={() => setAssigningStudent(assigningStudent === student.id ? null : student.id)}
+                              style={{
+                                background: theme.colors.primaryLight,
+                                color: theme.colors.primary,
+                                border: 'none',
+                                borderRadius: '7px',
+                                padding: '6px 12px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                fontFamily: theme.fonts.primary,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}>
+                              <UserPlus size={12} /> Assign to Club
+                            </button>
+                          )}
                         </div>
                       </div>
 
-                      {/* Assignment info */}
-                      <div style={{ textAlign: 'right' }}>
-                        {activeTab === 'assigned' && (
-                          <>
-                            <div style={{ fontSize: '13px', fontWeight: '600', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>{student.club_name}</div>
-                            <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>{student.room_number} · {student.dismissal_location}</div>
-                          </>
-                        )}
-                        {activeTab === 'waitlisted' && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-end' }}>
-                            {student.waitlist_entries?.map((entry, i) => (
-                              <div key={i} style={{ fontSize: '11px', color: theme.colors.warning, fontFamily: theme.fonts.primary, fontWeight: '600' }}>
-                                #{entry.position} on {entry.club_name}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {activeTab === 'unassigned' && (
-                          <div style={{ fontSize: '12px', color: theme.colors.danger, fontFamily: theme.fonts.primary }}>
-                            No valid choices available
-                          </div>
-                        )}
-                      </div>
+                      {/* Assign dropdown */}
+                      {activeTab === 'unassigned' && assigningStudent === student.id && (
+                        <div style={{
+                          background: theme.colors.background,
+                          borderRadius: '8px',
+                          padding: '12px',
+                          display: 'flex',
+                          gap: '8px',
+                          alignItems: 'center',
+                          marginLeft: '20px',
+                        }}>
+                          <select
+                            value={selectedClubId}
+                            onChange={e => setSelectedClubId(e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: '8px 12px',
+                              border: `1.5px solid ${theme.colors.border}`,
+                              borderRadius: '8px',
+                              fontSize: '13px',
+                              fontFamily: theme.fonts.primary,
+                              outline: 'none',
+                              backgroundColor: 'white',
+                            }}>
+                            <option value="">Select a club...</option>
+                            {clubs
+                              .filter(c => c.grade_min <= student.grade && student.grade <= c.grade_max && c.enrolled < c.max_students)
+                              .map(c => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name} ({c.max_students - c.enrolled} spots left)
+                                </option>
+                              ))
+                            }
+                          </select>
+                          <button
+                            onClick={() => handleAssign(student.id)}
+                            disabled={!selectedClubId || assigning}
+                            style={{
+                              background: theme.colors.primary,
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '8px 16px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              fontFamily: theme.fonts.primary,
+                              cursor: !selectedClubId || assigning ? 'not-allowed' : 'pointer',
+                              opacity: !selectedClubId ? 0.6 : 1,
+                            }}>
+                            {assigning ? 'Assigning...' : 'Confirm'}
+                          </button>
+                          <button
+                            onClick={() => { setAssigningStudent(null); setSelectedClubId('') }}
+                            style={{
+                              background: 'white',
+                              color: theme.colors.textMuted,
+                              border: `1px solid ${theme.colors.border}`,
+                              borderRadius: '8px',
+                              padding: '8px 12px',
+                              fontSize: '13px',
+                              fontFamily: theme.fonts.primary,
+                              cursor: 'pointer',
+                            }}>
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}

@@ -10,7 +10,6 @@ const coordinatorLinks = [
   { label: 'Lottery', icon: Trophy, path: '/coordinator/lottery' },
   { label: 'Assignments', icon: ClipboardList, path: '/coordinator/assignments' },
   { label: 'Roster', icon: Users, path: '/coordinator/roster' },
-  { label: 'Waitlist', icon: List, path: '/coordinator/waitlist' },
   { label: 'Excuses', icon: FileCheck, path: '/coordinator/excuses' },
   { label: 'Attendance', icon: CalendarCheck, path: '/coordinator/attendance' },
   { label: 'Reports', icon: BarChart2, path: '/coordinator/reports' },

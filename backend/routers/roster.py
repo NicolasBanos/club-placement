@@ -324,3 +324,67 @@ def remove_from_waitlist(
     db.commit()
 
     return {"message": "Student removed from waitlist"}
+
+@router.post("/assign/{student_id}")
+def manually_assign_student(
+    student_id: int,
+    club_id: int,
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """
+    Manually assign an unassigned student to a club.
+    Only works if the club has open spots.
+    """
+    # Check student isn't already assigned
+    existing = db.query(Assignment).filter(
+        Assignment.student_id == student_id
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Student is already assigned to a club")
+
+    # Check club has space
+    club = db.query(Club).filter(Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    enrolled_count = db.query(Assignment).filter(
+        Assignment.club_id == club_id
+    ).count()
+
+    if enrolled_count >= club.max_students:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{club.name} is full"
+        )
+
+    # Check grade eligibility
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    if not (club.grade_min <= student.grade <= club.grade_max):
+        raise HTTPException(
+            status_code=400,
+            detail=f"{student.first_name} is not eligible for {club.name} (grade mismatch)"
+        )
+
+    # Create assignment
+    new_assignment = Assignment(
+        student_id=student_id,
+        club_id=club_id,
+        assigned_date=date.today().isoformat()
+    )
+    db.add(new_assignment)
+
+    # Remove from any waitlists
+    db.query(Waitlist).filter(
+        Waitlist.student_id == student_id
+    ).delete()
+
+    db.commit()
+
+    return {
+        "message": f"{student.first_name} {student.last_name} assigned to {club.name}!"
+    }
