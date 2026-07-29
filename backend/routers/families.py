@@ -9,6 +9,7 @@ from models.user import User, UserRole
 from models.family import Family
 from models.student import Student
 from models.parent_family import ParentFamily
+from models.authorized_pickup import AuthorizedPickup
 
 router = APIRouter(prefix="/families", tags=["Families"])
 
@@ -25,14 +26,23 @@ class StudentInput(BaseModel):
     choice3: str | None = None
 
 
+class PickupInput(BaseModel):
+    name: str
+    phone: str | None = None
+    relationship_to_student: str | None = None
+
+
 class RegisterCreate(BaseModel):
     first_name: str
     last_name: str
     email: str
     password: str
     phone: str = ""
+    phone2: str | None = None
+    phone2_owner: str | None = None
     dismissal_method: str = "car"
     students: list[StudentInput]
+    pickups: list[PickupInput] = []
 
 
 class RegisterJoin(BaseModel):
@@ -88,6 +98,8 @@ def register_create(data: RegisterCreate, db: Session = Depends(get_db)):
         parent_first_name=data.first_name,
         parent_last_name=data.last_name,
         phone=data.phone or "",
+        phone2=data.phone2,
+        phone2_owner=data.phone2_owner,
         email=data.email,
         school_id=DEFAULT_SCHOOL_ID,
         join_code=join_code,
@@ -108,6 +120,15 @@ def register_create(data: RegisterCreate, db: Session = Depends(get_db)):
             choice2=s.choice2,
             choice3=s.choice3,
         ))
+
+    for p in data.pickups:
+        if p.name and p.name.strip():
+            db.add(AuthorizedPickup(
+                name=p.name.strip(),
+                phone=(p.phone or "").strip() or None,
+                relationship_to_student=(p.relationship_to_student or "").strip() or None,
+                family_id=family.id,
+            ))
 
     db.commit()
 

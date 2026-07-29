@@ -12,6 +12,8 @@ class Family(Base):
     parent_first_name = Column(String, nullable=False)
     parent_last_name = Column(String, nullable=False)
     phone = Column(String, nullable=False)
+    phone2 = Column(String, nullable=True)
+    phone2_owner = Column(String, nullable=True)
     email = Column(String, nullable=False)
     join_code = Column(String, nullable=True)
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=False)

@@ -127,8 +127,16 @@ function Login() {
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
-
           </form>
+          <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', fontFamily: 'Poppins, sans-serif', color: '#888' }}>
+            New here?{' '}
+            <span
+              onClick={() => navigate('/register')}
+              style={{ color: '#1a5c1a', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Create an account
+            </span>
+          </div>
         </div>
       </div>
 
