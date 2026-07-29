@@ -78,6 +78,23 @@ def get_all_clubs(
         for club in clubs
     ]
 
+@router.get("/public")
+def get_public_clubs(db: Session = Depends(get_db)):
+    """
+    Public, unauthenticated list of clubs for the registration form.
+    Returns only non-sensitive info (name + grade range) so parents can
+    pick grade-eligible club choices before they have an account.
+    """
+    clubs = db.query(Club).all()
+    return [
+        {
+            "id": c.id,
+            "name": c.name,
+            "grade_min": c.grade_min,
+            "grade_max": c.grade_max,
+        }
+        for c in clubs
+    ]
 
 @router.post("/")
 def create_club(

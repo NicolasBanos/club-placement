@@ -10,6 +10,7 @@ from models.school import School
 from models.user import User
 from models.parent_school import ParentSchool
 from models.attendance import Attendance
+from models.parent_family import ParentFamily
 
 
 def init_db():

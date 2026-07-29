@@ -13,6 +13,7 @@ import ExcuseApproval from './pages/coordinator/ExcuseApproval'
 import AttendanceOverview from './pages/coordinator/AttendanceOverview'
 import ClubSummaryReport from './pages/coordinator/ClubSummaryReport'
 import SpreadsheetUpload from './pages/coordinator/SpreadsheetUpload'
+import Register from './pages/Register'
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/register" element={<Register />} />
 
         {/* Coordinator routes */}
         <Route
