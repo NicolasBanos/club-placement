@@ -24,3 +24,4 @@ class User(Base):
 
     school = relationship("School", back_populates="users")
     schools = relationship("ParentSchool", back_populates="parent")
+    families = relationship("ParentFamily", back_populates="parent")

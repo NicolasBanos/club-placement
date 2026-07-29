@@ -7,4 +7,6 @@ backend/venv/
 frontend/node_modules/
 backend/__pycache__/
 mobile/node_modules/
-backend/firebase-credentials.json
+backend/firebase-credentials.json*.db
+firebase-credentials.json
+*credentials*.json

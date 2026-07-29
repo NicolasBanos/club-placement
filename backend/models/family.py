@@ -13,7 +13,9 @@ class Family(Base):
     parent_last_name = Column(String, nullable=False)
     phone = Column(String, nullable=False)
     email = Column(String, nullable=False)
+    join_code = Column(String, nullable=True)
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=False)
 
     students = relationship("Student", back_populates="family")
     authorized_pickups = relationship("AuthorizedPickup", back_populates="family")
+    parent_links = relationship("ParentFamily", back_populates="family")
