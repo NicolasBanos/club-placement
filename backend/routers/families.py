@@ -62,6 +62,27 @@ class ChoicesUpdate(BaseModel):
     choice2: str | None = None
     choice3: str | None = None
 
+class AddStudent(BaseModel):
+    family_id: int
+    first_name: str
+    last_name: str
+    grade: int
+    teacher: str
+    choice1: str | None = None
+    choice2: str | None = None
+    choice3: str | None = None
+
+
+class EditTeacher(BaseModel):
+    teacher: str
+
+
+class AddPickup(BaseModel):
+    family_id: int
+    name: str
+    phone: str | None = None
+    relationship_to_student: str | None = None
+
 
 def generate_join_code(db: Session) -> str:
     """Generate a unique short code like 'PPE-7K2Q' (no ambiguous chars)."""
@@ -246,6 +267,7 @@ def my_families(
                 "waitlists": waitlists,
             })
 
+        pickups = db.query(AuthorizedPickup).filter(AuthorizedPickup.family_id == family.id).all()
         result.append({
             "family_id": family.id,
             "family_name": family.family_name,
@@ -253,6 +275,10 @@ def my_families(
             "join_code": family.join_code if link.role == "creator" else None,
             "dismissal_method": family.dismissal_method,
             "students": students_out,
+            "pickups": [
+                {"id": p.id, "name": p.name, "phone": p.phone, "relationship_to_student": p.relationship_to_student}
+                for p in pickups
+            ],
         })
 
     return result
@@ -285,3 +311,92 @@ def update_choices(
     db.commit()
 
     return {"message": "Club choices updated."}
+
+def _require_creator(db: Session, parent_id: int, family_id: int):
+    """Raise unless this parent is the CREATOR of the given family."""
+    link = db.query(ParentFamily).filter(
+        ParentFamily.parent_id == parent_id,
+        ParentFamily.family_id == family_id,
+    ).first()
+    if not link:
+        raise HTTPException(status_code=403, detail="You are not linked to this family")
+    if link.role != "creator":
+        raise HTTPException(status_code=403, detail="Only the family creator can make changes")
+    return link
+
+
+@router.post("/students")
+def add_student(
+    data: AddStudent,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db)
+):
+    """Add a child to the family (creator only)."""
+    _require_creator(db, current_user.id, data.family_id)
+    student = Student(
+        first_name=data.first_name.strip(),
+        last_name=data.last_name.strip(),
+        grade=data.grade,
+        teacher=data.teacher.strip(),
+        family_id=data.family_id,
+        choice1=data.choice1,
+        choice2=data.choice2,
+        choice3=data.choice3,
+    )
+    db.add(student)
+    db.commit()
+    return {"message": "Child added.", "student_id": student.id}
+
+
+@router.put("/students/{student_id}/teacher")
+def edit_teacher(
+    student_id: int,
+    data: EditTeacher,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db)
+):
+    """Edit a child's teacher (creator only). Name and grade are not editable."""
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    _require_creator(db, current_user.id, student.family_id)
+    student.teacher = data.teacher.strip()
+    db.commit()
+    return {"message": "Teacher updated."}
+
+
+@router.post("/pickups")
+def add_pickup(
+    data: AddPickup,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db)
+):
+    """Add an authorized pickup person to the family (creator only)."""
+    _require_creator(db, current_user.id, data.family_id)
+    if not data.name.strip():
+        raise HTTPException(status_code=400, detail="Pickup name is required")
+    pickup = AuthorizedPickup(
+        name=data.name.strip(),
+        phone=(data.phone or "").strip() or None,
+        relationship_to_student=(data.relationship_to_student or "").strip() or None,
+        family_id=data.family_id,
+    )
+    db.add(pickup)
+    db.commit()
+    return {"message": "Pickup added.", "pickup_id": pickup.id}
+
+
+@router.delete("/pickups/{pickup_id}")
+def remove_pickup(
+    pickup_id: int,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db)
+):
+    """Remove an authorized pickup person (creator only)."""
+    pickup = db.query(AuthorizedPickup).filter(AuthorizedPickup.id == pickup_id).first()
+    if not pickup:
+        raise HTTPException(status_code=404, detail="Pickup not found")
+    _require_creator(db, current_user.id, pickup.family_id)
+    db.delete(pickup)
+    db.commit()
+    return {"message": "Pickup removed."}
