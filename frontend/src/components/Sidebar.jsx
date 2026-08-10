@@ -30,7 +30,6 @@ const parentLinks = [
   { label: 'Dashboard', icon: Home, path: '/parent' },
   { label: 'My Children', icon: Users, path: '/parent/children' },
   { label: 'Excuses', icon: FileCheck, path: '/parent/excuses' },
-  { label: 'Pickup Info', icon: ClipboardList, path: '/parent/pickup' },
   { label: 'Messages', icon: MessageSquare, path: '/parent/messages' },
 ]
 

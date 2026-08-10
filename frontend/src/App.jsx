@@ -14,6 +14,7 @@ import AttendanceOverview from './pages/coordinator/AttendanceOverview'
 import ClubSummaryReport from './pages/coordinator/ClubSummaryReport'
 import SpreadsheetUpload from './pages/coordinator/SpreadsheetUpload'
 import Register from './pages/Register'
+import MyChildren from './pages/parent/MyChildren'
 
 function App() {
   return (
@@ -124,6 +125,15 @@ function App() {
               <ParentDashboard />
             </ProtectedRoute>
           }
+        />
+
+        <Route 
+          path="/parent/children" 
+          element=
+            {<ProtectedRoute allowedRoles={['parent']}>
+              <MyChildren />
+            </ProtectedRoute>
+          } 
         />
 
         {/* Catch all */}
