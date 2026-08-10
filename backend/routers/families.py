@@ -10,6 +10,10 @@ from models.family import Family
 from models.student import Student
 from models.parent_family import ParentFamily
 from models.authorized_pickup import AuthorizedPickup
+from models.assignment import Assignment
+from models.waitlist import Waitlist
+from models.club import Club
+from models.meeting_date import MeetingDate
 
 router = APIRouter(prefix="/families", tags=["Families"])
 
@@ -200,25 +204,55 @@ def my_families(
         if not family:
             continue
         students = db.query(Student).filter(Student.family_id == family.id).all()
+
+        students_out = []
+        for s in students:
+            assignment_info = None
+            assignment = db.query(Assignment).filter(Assignment.student_id == s.id).first()
+            if assignment:
+                club = db.query(Club).filter(Club.id == assignment.club_id).first()
+                if club:
+                    meetings = db.query(MeetingDate).filter(MeetingDate.club_id == club.id).order_by(MeetingDate.date).all()
+                    assignment_info = {
+                        "club_name": club.name,
+                        "room_number": club.room_number,
+                        "dismissal_location": club.dismissal_location,
+                        "instructor": club.instructor,
+                        "meeting_dates": [
+                            {"date": m.date, "start_time": m.start_time, "end_time": m.end_time}
+                            for m in meetings
+                        ],
+                    }
+
+            waitlists = []
+            for w in db.query(Waitlist).filter(Waitlist.student_id == s.id).all():
+                wclub = db.query(Club).filter(Club.id == w.club_id).first()
+                waitlists.append({
+                    "club_name": wclub.name if wclub else "",
+                    "position": w.position,
+                    "pending_confirmation": w.pending_confirmation,
+                })
+
+            students_out.append({
+                "id": s.id,
+                "first_name": s.first_name,
+                "last_name": s.last_name,
+                "grade": s.grade,
+                "teacher": s.teacher,
+                "choice1": s.choice1,
+                "choice2": s.choice2,
+                "choice3": s.choice3,
+                "assignment": assignment_info,
+                "waitlists": waitlists,
+            })
+
         result.append({
             "family_id": family.id,
             "family_name": family.family_name,
             "role": link.role,
             "join_code": family.join_code if link.role == "creator" else None,
             "dismissal_method": family.dismissal_method,
-            "students": [
-                {
-                    "id": s.id,
-                    "first_name": s.first_name,
-                    "last_name": s.last_name,
-                    "grade": s.grade,
-                    "teacher": s.teacher,
-                    "choice1": s.choice1,
-                    "choice2": s.choice2,
-                    "choice3": s.choice3,
-                }
-                for s in students
-            ],
+            "students": students_out,
         })
 
     return result
