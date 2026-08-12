@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, date
 from database.connection import get_db
-from core.auth import require_coordinator, require_teacher
+from core.auth import require_coordinator, require_teacher, require_parent
 from core.notifications import send_excuse_decision_notification
 from models.user import User
 from models.club import Club
@@ -13,6 +13,7 @@ from models.assignment import Assignment
 from models.waitlist import Waitlist
 from models.meeting_date import MeetingDate
 from models.attendance import Attendance
+from models.parent_family import ParentFamily
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
 
@@ -28,6 +29,10 @@ class StudentAttendance(BaseModel):
 class AttendanceSubmission(BaseModel):
     meeting_date_id: int
     records: list[StudentAttendance]
+
+class ExcuseSubmission(BaseModel):
+    attendance_id: int
+    excuse_reason: str    
 
 
 # ---------- Helpers ----------
@@ -420,3 +425,119 @@ def override_attendance(
 
     db.commit()
     return {"message": "Attendance updated."}
+
+# ---------- Parent: list absences needing/awaiting/reviewed excuses ----------
+
+@router.get("/excuses/mine")
+def my_excuses(
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db)
+):
+    """
+    All absences for this parent's children, across every status:
+    needs excuse (none, within deadline), needs excuse (none, past deadline),
+    pending review, approved, denied.
+    """
+    family_ids = [
+        link.family_id for link in
+        db.query(ParentFamily).filter(ParentFamily.parent_id == current_user.id).all()
+    ]
+    if not family_ids:
+        return []
+
+    student_ids = [
+        s.id for s in
+        db.query(Student).filter(Student.family_id.in_(family_ids)).all()
+    ]
+    if not student_ids:
+        return []
+
+    absences = db.query(Attendance).filter(
+        Attendance.student_id.in_(student_ids),
+        Attendance.status == "absent"
+    ).all()
+
+    today = date.today()
+    result = []
+    for a in absences:
+        student = db.query(Student).filter(Student.id == a.student_id).first()
+        meeting = db.query(MeetingDate).filter(MeetingDate.id == a.meeting_date_id).first()
+        club = db.query(Club).filter(Club.id == meeting.club_id).first() if meeting else None
+
+        deadline_passed = False
+        days_remaining = None
+        if meeting:
+            meeting_date = datetime.strptime(meeting.date, "%Y-%m-%d").date()
+            days_since = (today - meeting_date).days
+            deadline_passed = days_since > 3
+            days_remaining = max(0, 3 - days_since)
+
+        result.append({
+            "attendance_id": a.id,
+            "student_id": a.student_id,
+            "student_name": f"{student.first_name} {student.last_name}" if student else "",
+            "grade": student.grade if student else None,
+            "club_name": club.name if club else "",
+            "absence_date": meeting.date if meeting else "",
+            "excuse_status": a.excuse_status,
+            "excuse_reason": a.excuse_reason,
+            "submitted_at": a.submitted_at,
+            "reviewed_at": a.reviewed_at,
+            "deadline_passed": deadline_passed,
+            "days_remaining": days_remaining,
+        })
+
+    result.sort(key=lambda r: r["absence_date"], reverse=True)
+    return result
+
+
+# ---------- Parent: submit an excuse ----------
+
+@router.post("/excuses/submit")
+def submit_excuse(
+    submission: ExcuseSubmission,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db)
+):
+    """Parent submits an excuse reason for one of their child's unexcused absences."""
+    a = db.query(Attendance).filter(Attendance.id == submission.attendance_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Attendance record not found")
+
+    # Verify this student belongs to one of the parent's families
+    student = db.query(Student).filter(Student.id == a.student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    family_ids = [
+        link.family_id for link in
+        db.query(ParentFamily).filter(ParentFamily.parent_id == current_user.id).all()
+    ]
+    if student.family_id not in family_ids:
+        raise HTTPException(status_code=403, detail="This student is not linked to your account")
+
+    if a.status != "absent" or a.excuse_status != "none":
+        raise HTTPException(
+            status_code=400,
+            detail="This absence has already been excused, submitted, or is not an unexcused absence"
+        )
+
+    meeting = db.query(MeetingDate).filter(MeetingDate.id == a.meeting_date_id).first()
+    if meeting:
+        meeting_date = datetime.strptime(meeting.date, "%Y-%m-%d").date()
+        days_since = (date.today() - meeting_date).days
+        if days_since > 3:
+            raise HTTPException(
+                status_code=400,
+                detail="The 3-day window to submit this excuse has passed. Please contact your child's teacher."
+            )
+
+    if not submission.excuse_reason.strip():
+        raise HTTPException(status_code=400, detail="Excuse reason cannot be empty")
+
+    a.excuse_reason = submission.excuse_reason.strip()
+    a.excuse_status = "pending"
+    a.submitted_at = datetime.utcnow().isoformat()
+    db.commit()
+
+    return {"message": "Excuse submitted and sent to the coordinator for review."}
