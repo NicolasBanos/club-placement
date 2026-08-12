@@ -15,6 +15,7 @@ import ClubSummaryReport from './pages/coordinator/ClubSummaryReport'
 import SpreadsheetUpload from './pages/coordinator/SpreadsheetUpload'
 import Register from './pages/Register'
 import MyChildren from './pages/parent/MyChildren'
+import ParentExcuses from './pages/parent/ParentExcuses'
 
 function App() {
   return (
@@ -132,6 +133,15 @@ function App() {
           element=
             {<ProtectedRoute allowedRoles={['parent']}>
               <MyChildren />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
+          path="/parent/excuses" 
+          element={
+            <ProtectedRoute allowedRoles={['parent']}>
+              <ParentExcuses />
             </ProtectedRoute>
           } 
         />
