@@ -18,6 +18,10 @@ class TeacherCreate(BaseModel):
     club_id: Optional[int] = None
 
 
+class TeacherClubAssign(BaseModel):
+    club_id: Optional[int] = None  # None = unassign
+
+
 @router.get("/teachers")
 def get_teachers(
     current_user: User = Depends(require_coordinator),
@@ -28,19 +32,15 @@ def get_teachers(
 
     result = []
     for teacher in teachers:
-        # Find their assigned club
-        assigned_club = None
-        if teacher.school_id:
-            club = db.query(Club).filter(Club.id == teacher.school_id).first()
-            if club:
-                assigned_club = club.name
+        club = db.query(Club).filter(Club.teacher_id == teacher.id).first()
 
         result.append({
             "id": teacher.id,
             "first_name": teacher.first_name,
             "last_name": teacher.last_name,
             "email": teacher.email,
-            "assigned_club": assigned_club,
+            "assigned_club": club.name if club else None,
+            "assigned_club_id": club.id if club else None,
         })
 
     return result
@@ -52,11 +52,17 @@ def create_teacher(
     current_user: User = Depends(require_coordinator),
     db: Session = Depends(get_db)
 ):
-    """Create a new teacher account"""
+    """Create a new teacher account, optionally assigning them to a club."""
     # Check if email already exists
     existing = db.query(User).filter(User.email == teacher_data.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+
+    club = None
+    if teacher_data.club_id is not None:
+        club = db.query(Club).filter(Club.id == teacher_data.club_id).first()
+        if not club:
+            raise HTTPException(status_code=404, detail="Club not found")
 
     new_teacher = User(
         first_name=teacher_data.first_name,
@@ -71,10 +77,42 @@ def create_teacher(
     db.commit()
     db.refresh(new_teacher)
 
+    if club:
+        club.teacher_id = new_teacher.id
+        db.commit()
+
     return {
         "message": f"Teacher account created for {new_teacher.first_name} {new_teacher.last_name}",
         "id": new_teacher.id
     }
+
+
+@router.put("/teachers/{teacher_id}/club")
+def assign_teacher_club(
+    teacher_id: int,
+    assignment: TeacherClubAssign,
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """Assign (or unassign) a teacher's club."""
+    teacher = db.query(User).filter(
+        User.id == teacher_id,
+        User.role == UserRole.teacher
+    ).first()
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+
+    # Clear any club currently pointing at this teacher (a teacher has at most one club)
+    db.query(Club).filter(Club.teacher_id == teacher_id).update({"teacher_id": None})
+
+    if assignment.club_id is not None:
+        club = db.query(Club).filter(Club.id == assignment.club_id).first()
+        if not club:
+            raise HTTPException(status_code=404, detail="Club not found")
+        club.teacher_id = teacher_id
+
+    db.commit()
+    return {"message": "Teacher's club assignment updated."}
 
 
 @router.delete("/teachers/{teacher_id}")
