@@ -8,6 +8,12 @@ from models.club import Club
 from models.meeting_date import MeetingDate
 from models.user import User
 from core.auth import require_coordinator, require_teacher
+from models.student import Student
+from models.family import Family
+from models.assignment import Assignment
+from models.waitlist import Waitlist
+from models.authorized_pickup import AuthorizedPickup
+from models.parent_family import ParentFamily
 
 
 router = APIRouter(prefix="/clubs", tags=["Clubs"])
@@ -143,6 +149,95 @@ def get_my_club(
         })
 
     return result
+
+@router.get("/{club_id}/roster")
+def get_club_roster(
+    club_id: int,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db)
+):
+    """
+    Full roster (enrolled + waitlist) for a single club.
+    Teachers can only view their own assigned club; coordinators can view any club.
+    """
+    club = db.query(Club).filter(Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if current_user.role.value == "teacher" and club.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You are not assigned to this club")
+
+    assignments = db.query(Assignment).filter(Assignment.club_id == club.id).all()
+    
+    enrolled = []
+    for a in assignments:
+        student = db.query(Student).filter(Student.id == a.student_id).first()
+        family = db.query(Family).filter(Family.id == student.family_id).first() if student else None
+
+        pickups = []
+        if family:
+            for p in db.query(AuthorizedPickup).filter(AuthorizedPickup.family_id == family.id).all():
+                pickups.append({
+                    "name": p.name,
+                    "phone": p.phone,
+                    "relationship_to_student": p.relationship_to_student,
+                })
+
+        linked_parents = []
+        if family:
+            links = db.query(ParentFamily).filter(ParentFamily.family_id == family.id).all()
+            for link in links:
+                parent_user = db.query(User).filter(User.id == link.parent_id).first()
+                if parent_user:
+                    linked_parents.append({
+                        "name": f"{parent_user.first_name} {parent_user.last_name}",
+                        "email": parent_user.email,
+                        "role": link.role,
+                    })
+
+        enrolled.append({
+            "student_id": student.id,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "grade": student.grade,
+            "family_name": family.family_name if family else "",
+            "dismissal_method": family.dismissal_method if family else "",
+            "pickups": pickups,
+            "primary_contact": {
+                "name": f"{family.parent_first_name} {family.parent_last_name}" if family else "",
+                "phone": family.phone if family else "",
+                "phone2": family.phone2 if family else None,
+                "phone2_owner": family.phone2_owner if family else None,
+                "email": family.email if family else "",
+            } if family else None,
+            "linked_parents": linked_parents,
+        })
+    enrolled.sort(key=lambda s: (s["last_name"], s["first_name"]))
+
+    waitlist = db.query(Waitlist).filter(Waitlist.club_id == club.id).order_by(Waitlist.position).all()
+    waitlisted = []
+    for w in waitlist:
+        student = db.query(Student).filter(Student.id == w.student_id).first()
+        family = db.query(Family).filter(Family.id == student.family_id).first() if student else None
+        waitlisted.append({
+            "student_id": student.id,
+            "position": w.position,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "grade": student.grade,
+            "family_name": family.family_name if family else "",
+            "pending_confirmation": w.pending_confirmation,
+        })
+
+    return {
+        "id": club.id,
+        "name": club.name,
+        "room_number": club.room_number,
+        "max_students": club.max_students,
+        "enrolled_count": len(enrolled),
+        "enrolled": enrolled,
+        "waitlist": waitlisted,
+    }
 
 @router.post("/")
 def create_club(
