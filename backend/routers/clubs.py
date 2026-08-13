@@ -3,17 +3,16 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 from database.connection import get_db
-from core.auth import require_coordinator
+from core.auth import require_coordinator, require_teacher
 from models.club import Club
 from models.meeting_date import MeetingDate
 from models.user import User
-from core.auth import require_coordinator, require_teacher
 from models.student import Student
 from models.family import Family
 from models.assignment import Assignment
 from models.waitlist import Waitlist
-from models.authorized_pickup import AuthorizedPickup
 from models.parent_family import ParentFamily
+from models.authorized_pickup import AuthorizedPickup
 
 
 router = APIRouter(prefix="/clubs", tags=["Clubs"])
@@ -168,7 +167,6 @@ def get_club_roster(
         raise HTTPException(status_code=403, detail="You are not assigned to this club")
 
     assignments = db.query(Assignment).filter(Assignment.club_id == club.id).all()
-    
     enrolled = []
     for a in assignments:
         student = db.query(Student).filter(Student.id == a.student_id).first()

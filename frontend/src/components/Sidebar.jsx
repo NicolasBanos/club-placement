@@ -20,10 +20,8 @@ const coordinatorLinks = [
 const teacherLinks = [
   { label: 'Dashboard', icon: Home, path: '/teacher' },
   { label: 'My Club', icon: School, path: '/teacher/club' },
-  { label: 'All Clubs', icon: ClipboardList, path: '/teacher/all-clubs' },
   { label: 'Attendance', icon: CalendarCheck, path: '/teacher/attendance' },
   { label: 'Messages', icon: MessageSquare, path: '/teacher/messages' },
-  { label: 'Students', icon: Users, path: '/teacher/students' },
 ]
 
 const parentLinks = [

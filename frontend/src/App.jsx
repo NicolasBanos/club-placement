@@ -17,6 +17,7 @@ import Register from './pages/Register'
 import MyChildren from './pages/parent/MyChildren'
 import ParentExcuses from './pages/parent/ParentExcuses'
 import MyClub from './pages/teacher/MyClub'
+import AttendanceSubmission from './pages/teacher/AttendanceSubmission'
 
 function App() {
   return (
@@ -126,6 +127,15 @@ function App() {
               <MyClub />
             </ProtectedRoute>
           }
+        />
+
+        <Route 
+          path="/teacher/attendance" 
+          element={
+            <ProtectedRoute allowedRoles={['teacher', 'coordinator']}>
+              <AttendanceSubmission />
+            </ProtectedRoute>
+          } 
         />
 
         {/* Parent routes */}
