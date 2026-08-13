@@ -16,6 +16,7 @@ import SpreadsheetUpload from './pages/coordinator/SpreadsheetUpload'
 import Register from './pages/Register'
 import MyChildren from './pages/parent/MyChildren'
 import ParentExcuses from './pages/parent/ParentExcuses'
+import MyClub from './pages/teacher/MyClub'
 
 function App() {
   return (
@@ -114,6 +115,15 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['teacher', 'coordinator']}>
               <TeacherDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route 
+          path="/teacher/club" 
+          element={
+            <ProtectedRoute allowedRoles={['teacher', 'coordinator']}>
+              <MyClub />
             </ProtectedRoute>
           }
         />
