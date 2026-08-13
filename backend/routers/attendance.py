@@ -81,8 +81,10 @@ def submit_attendance(
 ):
     """
     Submit attendance for a whole roster for one meeting date.
-    Upserts a record per student. Absences are recorded with excuse_status 'none';
-    a parent later submits an excuse to move it into the coordinator queue.
+    Upserts a record per student.
+      present -> status present, excuse cleared
+      absent  -> status absent, excuse_status none (unexcused, parent can excuse later)
+      excused -> status absent, excuse_status approved (teacher-confirmed excused on the spot)
     """
     meeting = db.query(MeetingDate).filter(
         MeetingDate.id == submission.meeting_date_id
@@ -91,7 +93,7 @@ def submit_attendance(
         raise HTTPException(status_code=404, detail="Meeting date not found")
 
     for record in submission.records:
-        if record.status not in ("present", "absent"):
+        if record.status not in ("present", "absent", "excused"):
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid status '{record.status}' for student {record.student_id}"
@@ -103,19 +105,102 @@ def submit_attendance(
         ).first()
 
         if existing:
-            existing.status = record.status
-            existing.late_pickup = record.late_pickup
+            record_obj = existing
         else:
-            db.add(Attendance(
+            record_obj = Attendance(
                 student_id=record.student_id,
                 meeting_date_id=submission.meeting_date_id,
-                status=record.status,
-                late_pickup=record.late_pickup,
-                excuse_status="none",
-            ))
+            )
+            db.add(record_obj)
+
+        record_obj.late_pickup = record.late_pickup
+
+        if record.status == "present":
+            record_obj.status = "present"
+            record_obj.excuse_status = "none"
+            record_obj.excuse_reason = None
+            record_obj.reviewed_at = None
+            record_obj.reviewed_by = None
+        elif record.status == "absent":
+            record_obj.status = "absent"
+            record_obj.excuse_status = "none"
+        else:  # excused
+            record_obj.status = "absent"
+            record_obj.excuse_status = "approved"
+            record_obj.reviewed_at = datetime.utcnow().isoformat()
+            record_obj.reviewed_by = current_user.id
 
     db.commit()
     return {"message": "Attendance submitted successfully."}
+
+# ---------- Teacher: today's meeting + current marks for their club ----------
+
+@router.get("/mine-today")
+def my_attendance_today(
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns today's meeting date for the teacher's club (if any) plus each
+    enrolled student's current attendance status, so the frontend can pre-fill
+    and lock submission once there's no meeting today.
+    """
+    from datetime import date
+    today = date.today().isoformat()
+
+    club = db.query(Club).filter(Club.teacher_id == current_user.id).first()
+    if not club:
+        return {"club_id": None, "meeting_today": False, "date": today, "students": []}
+
+    meeting = db.query(MeetingDate).filter(
+        MeetingDate.club_id == club.id,
+        MeetingDate.date == today
+    ).first()
+
+    if not meeting:
+        return {"club_id": club.id, "club_name": club.name, "meeting_today": False, "date": today, "students": []}
+
+    assignments = db.query(Assignment).filter(Assignment.club_id == club.id).all()
+
+    students_out = []
+    for a in assignments:
+        student = db.query(Student).filter(Student.id == a.student_id).first()
+        if not student:
+            continue
+
+        record = db.query(Attendance).filter(
+            Attendance.student_id == student.id,
+            Attendance.meeting_date_id == meeting.id
+        ).first()
+
+        if record is None:
+            display_status = "unmarked"
+        elif record.status == "present":
+            display_status = "present"
+        elif record.status == "absent" and record.excuse_status == "approved":
+            display_status = "excused"
+        else:
+            display_status = "absent"
+
+        students_out.append({
+            "student_id": student.id,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "grade": student.grade,
+            "status": display_status,
+            "late_pickup": record.late_pickup if record else False,
+        })
+
+    students_out.sort(key=lambda s: (s["last_name"], s["first_name"]))
+
+    return {
+        "club_id": club.id,
+        "club_name": club.name,
+        "meeting_today": True,
+        "meeting_date_id": meeting.id,
+        "date": today,
+        "students": students_out,
+    }
 
 
 # ---------- Coordinator: list pending excuses ----------
