@@ -16,8 +16,10 @@ class Club(Base):
     dismissal_location = Column(String, nullable=False)
     description = Column(String, nullable=True)
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=False)
+    teacher_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     school = relationship("School", back_populates="clubs")
     assignments = relationship("Assignment", back_populates="club")
     waitlist_entries = relationship("Waitlist", back_populates="club")
     meeting_dates = relationship("MeetingDate", back_populates="club")
+    teacher = relationship("User")

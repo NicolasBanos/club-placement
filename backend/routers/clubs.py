@@ -7,6 +7,8 @@ from core.auth import require_coordinator
 from models.club import Club
 from models.meeting_date import MeetingDate
 from models.user import User
+from core.auth import require_coordinator, require_teacher
+
 
 router = APIRouter(prefix="/clubs", tags=["Clubs"])
 
@@ -95,6 +97,52 @@ def get_public_clubs(db: Session = Depends(get_db)):
         }
         for c in clubs
     ]
+
+@router.get("/mine")
+def get_my_club(
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns the club(s) assigned to the logged-in teacher, with enrollment
+    and next-meeting info. A teacher currently has at most one club.
+    """
+    clubs = db.query(Club).filter(Club.teacher_id == current_user.id).all()
+
+    if not clubs:
+        return []
+
+    from datetime import date
+    today = date.today().isoformat()
+
+    result = []
+    for club in clubs:
+        upcoming = sorted(
+            [m for m in club.meeting_dates if m.date >= today],
+            key=lambda m: m.date
+        )
+        next_meeting = upcoming[0] if upcoming else None
+
+        result.append({
+            "id": club.id,
+            "name": club.name,
+            "grade_min": club.grade_min,
+            "grade_max": club.grade_max,
+            "max_students": club.max_students,
+            "room_number": club.room_number,
+            "dismissal_location": club.dismissal_location,
+            "description": club.description,
+            "enrolled": len(club.assignments),
+            "waitlisted": len(club.waitlist_entries),
+            "next_meeting": {
+                "id": next_meeting.id,
+                "date": next_meeting.date,
+                "start_time": next_meeting.start_time,
+                "end_time": next_meeting.end_time,
+            } if next_meeting else None,
+        })
+
+    return result
 
 @router.post("/")
 def create_club(
