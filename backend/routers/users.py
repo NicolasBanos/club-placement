@@ -6,6 +6,7 @@ from database.connection import get_db
 from core.auth import require_coordinator, hash_password
 from models.user import User, UserRole
 from models.club import Club
+from core.auth import require_coordinator, hash_password, get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -134,3 +135,14 @@ def deactivate_teacher(
     db.commit()
 
     return {"message": f"Teacher account removed successfully"}
+
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    """Returns basic info about the logged-in user."""
+    return {
+        "id": current_user.id,
+        "first_name": current_user.first_name,
+        "last_name": current_user.last_name,
+        "email": current_user.email,
+        "role": current_user.role.value,
+    }

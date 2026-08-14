@@ -18,6 +18,8 @@ import MyChildren from './pages/parent/MyChildren'
 import ParentExcuses from './pages/parent/ParentExcuses'
 import MyClub from './pages/teacher/MyClub'
 import AttendanceSubmission from './pages/teacher/AttendanceSubmission'
+import TeacherMessages from './pages/teacher/TeacherMessages'
+import ParentMessages from './pages/parent/ParentMessages'
 
 function App() {
   return (
@@ -110,6 +112,15 @@ function App() {
           }
         />
 
+        <Route 
+          path="/teacher/messages" 
+          element={
+            <ProtectedRoute allowedRoles={['teacher', 'coordinator']}>
+              <TeacherMessages />
+            </ProtectedRoute>
+          } 
+        />
+
         {/* Teacher routes */}
         <Route
           path="/teacher"
@@ -162,6 +173,15 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['parent']}>
               <ParentExcuses />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
+          path="/parent/messages" 
+          element={
+            <ProtectedRoute allowedRoles={['parent']}>
+              <ParentMessages />
             </ProtectedRoute>
           } 
         />

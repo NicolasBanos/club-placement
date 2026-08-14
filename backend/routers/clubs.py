@@ -188,6 +188,7 @@ def get_club_roster(
                 parent_user = db.query(User).filter(User.id == link.parent_id).first()
                 if parent_user:
                     linked_parents.append({
+                        "id": parent_user.id,
                         "name": f"{parent_user.first_name} {parent_user.last_name}",
                         "email": parent_user.email,
                         "role": link.role,
