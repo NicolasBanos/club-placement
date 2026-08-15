@@ -295,3 +295,105 @@ def get_results(
         "total_unassigned": len(unassigned),
     }
 
+@router.get("/duplicates")
+def check_duplicates(
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """
+    Scans for possible duplicate students and families for coordinator review.
+    Does not modify anything — purely a report.
+    """
+    students = db.query(Student).all()
+    families = db.query(Family).all()
+
+    # --- Student duplicates: same first+last name+grade, case-insensitive ---
+    student_groups = {}
+    for s in students:
+        key = (s.first_name.strip().lower(), s.last_name.strip().lower(), s.grade)
+        student_groups.setdefault(key, []).append(s)
+
+    duplicate_students = []
+    for key, group in student_groups.items():
+        if len(group) > 1:
+            family_ids = {s.family_id for s in group}
+            duplicate_students.append({
+                "first_name": group[0].first_name,
+                "last_name": group[0].last_name,
+                "grade": group[0].grade,
+                "different_families": len(family_ids) > 1,
+                "entries": [
+                    {
+                        "student_id": s.id,
+                        "family_id": s.family_id,
+                        "family_name": db.query(Family).filter(Family.id == s.family_id).first().family_name
+                                        if db.query(Family).filter(Family.id == s.family_id).first() else "",
+                    }
+                    for s in group
+                ],
+            })
+
+    # --- Family duplicates: same parent email OR same parent phone ---
+    email_groups = {}
+    phone_groups = {}
+    for f in families:
+        if f.email:
+            email_groups.setdefault(f.email.strip().lower(), []).append(f)
+        if f.phone:
+            phone_groups.setdefault(f.phone.strip(), []).append(f)
+
+    duplicate_families = []
+    seen_family_pairs = set()
+
+    for email, group in email_groups.items():
+        if len(group) > 1:
+            ids = tuple(sorted(f.id for f in group))
+            if ids not in seen_family_pairs:
+                seen_family_pairs.add(ids)
+                duplicate_families.append({
+                    "matched_on": "email",
+                    "value": email,
+                    "families": [{"family_id": f.id, "family_name": f.family_name} for f in group],
+                })
+
+    for phone, group in phone_groups.items():
+        if len(group) > 1:
+            ids = tuple(sorted(f.id for f in group))
+            if ids not in seen_family_pairs:
+                seen_family_pairs.add(ids)
+                duplicate_families.append({
+                    "matched_on": "phone",
+                    "value": phone,
+                    "families": [{"family_id": f.id, "family_name": f.family_name} for f in group],
+                })
+
+    return {
+        "duplicate_students": duplicate_students,
+        "duplicate_families": duplicate_families,
+    }
+
+@router.delete("/students/{student_id}")
+def delete_registrant(
+    student_id: int,
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """
+    Remove a student from the registrant list (pre-lottery only).
+    Blocks deletion if the student already has a real assignment or waitlist entry.
+    """
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    has_assignment = db.query(Assignment).filter(Assignment.student_id == student_id).first()
+    has_waitlist = db.query(Waitlist).filter(Waitlist.student_id == student_id).first()
+    if has_assignment or has_waitlist:
+        raise HTTPException(
+            status_code=400,
+            detail="This student already has lottery results and cannot be removed from here."
+        )
+
+    db.delete(student)
+    db.commit()
+    return {"message": f"{student.first_name} {student.last_name} removed."}
