@@ -7,7 +7,17 @@ from sqlalchemy.orm import Session
 from database.connection import get_db
 from models.user import User
 
-SECRET_KEY = "clubsforkids-secret-key-change-in-production"
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is not set. Check your .env file.")
+
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
