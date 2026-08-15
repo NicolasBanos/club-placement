@@ -212,9 +212,10 @@ function ExcuseApproval() {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                                         <CalendarX size={12} /> {excuse.club_name} · absent {formatDate(excuse.absence_date)}
                                                         {excuse.submitted_at && <span>· submitted {daysAgo(excuse.submitted_at)}</span>}
+                                                        {excuse.submitted_by_name && <span>· by {excuse.submitted_by_name}</span>}
                                                     </div>
                                                     <div style={{ fontSize: '13px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary, marginTop: '8px', padding: '10px 12px', background: 'white', borderRadius: '8px', border: `1px solid ${theme.colors.border}` }}>
                                                         {excuse.excuse_reason || <span style={{ color: theme.colors.textMuted, fontStyle: 'italic' }}>No reason provided</span>}

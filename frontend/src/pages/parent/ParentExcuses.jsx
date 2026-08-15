@@ -25,19 +25,18 @@ const CardShell = ({ children }) => (
 )
 
 const AbsenceInfo = ({ e }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-    <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
-      {e.student_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-    </div>
-    <div>
-      <div style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>{e.student_name}</div>
-      <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '10px', marginTop: '2px' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><School size={12} /> {e.club_name}</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={12} /> {formatDate(e.absence_date)}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+      <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
+        {e.student_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+      </div>
+      <div>
+        <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '10px', marginTop: '2px' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><School size={12} /> {e.club_name}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={12} /> {formatDate(e.absence_date)}</span>
+        </div>
       </div>
     </div>
-  </div>
-)
+  )
 
 function ParentExcuses() {
   const [excuses, setExcuses] = useState([])
