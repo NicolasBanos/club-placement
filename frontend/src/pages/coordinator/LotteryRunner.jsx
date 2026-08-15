@@ -19,6 +19,9 @@ function LotteryRunner() {
   const [searchTerm, setSearchTerm] = useState('')
   const [locked, setLocked] = useState(false)
   const [lockLoading, setLockLoading] = useState(false)
+  const [duplicates, setDuplicates] = useState(null)
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false)
+  const [showDuplicates, setShowDuplicates] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -125,6 +128,36 @@ function LotteryRunner() {
     }
   }
 
+  const handleCheckDuplicates = async () => {
+    setCheckingDuplicates(true)
+    try {
+      const res = await api.get('/lottery/duplicates')
+      setDuplicates(res.data)
+      setShowDuplicates(true)
+    } catch (err) {
+      setError('Failed to check for duplicates')
+    } finally {
+      setCheckingDuplicates(false)
+    }
+  }
+
+  const handleDeleteRegistrant = async (studentId, studentName) => {
+    if (!window.confirm(`Remove ${studentName} from the registrant list? This cannot be undone.`)) return
+    try {
+      await api.delete(`/lottery/students/${studentId}`)
+      setError('')
+      // refresh both families and any open duplicate report
+      const familiesRes = await api.get('/lottery/families')
+      setFamilies(familiesRes.data)
+      if (duplicates) {
+        const dupRes = await api.get('/lottery/duplicates')
+        setDuplicates(dupRes.data)
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to remove student')
+    }
+  }
+
   const toggleFamily = (familyId) => {
     const key = `${viewMode}-${familyId}`
     setExpandedFamilies(prev => ({ ...prev, [key]: !prev[key] }))
@@ -189,6 +222,22 @@ function LotteryRunner() {
               ) : (
                 <><Unlock size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />Lock Registration</>
               )}
+            </button>
+            <button
+              onClick={handleCheckDuplicates}
+              disabled={checkingDuplicates}
+              style={{
+                background: 'white',
+                color: theme.colors.textSecondary,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: '9px',
+                padding: '10px 16px',
+                fontSize: '13px',
+                fontWeight: '600',
+                fontFamily: theme.fonts.primary,
+                cursor: checkingDuplicates ? 'not-allowed' : 'pointer',
+              }}>
+              {checkingDuplicates ? 'Checking…' : 'Check for Duplicates'}
             </button>
             {results && !lettersSent && (
               <button
@@ -288,6 +337,65 @@ function LotteryRunner() {
             />
           </div>
         </div>
+
+        {showDuplicates && duplicates && (
+          <div style={{ margin: '16px 28px 0', background: 'white', borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border}`, padding: '18px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
+                Duplicate Check Results
+              </div>
+              <button onClick={() => setShowDuplicates(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>
+                Dismiss
+              </button>
+            </div>
+
+            {duplicates.duplicate_students.length === 0 && duplicates.duplicate_families.length === 0 ? (
+              <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontStyle: 'italic' }}>
+                No possible duplicates found.
+              </div>
+            ) : (
+              <>
+                {duplicates.duplicate_students.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: theme.colors.warning, fontFamily: theme.fonts.primary, marginBottom: '8px' }}>
+                      Possible duplicate students ({duplicates.duplicate_students.length})
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {duplicates.duplicate_students.map((d, i) => (
+                        <div key={i} style={{ background: theme.colors.warningLight, borderRadius: '8px', padding: '10px 14px', fontSize: '12px', fontFamily: theme.fonts.primary }}>
+                          <strong>{d.first_name} {d.last_name}</strong> — Grade {d.grade === 0 ? 'K' : d.grade}
+                          {d.different_families && <span style={{ color: theme.colors.danger, fontWeight: '700', marginLeft: '6px' }}>· different families</span>}
+                          <div style={{ marginTop: '4px', color: theme.colors.textSecondary }}>
+                            {d.entries.map(e => e.family_name).join(', ')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {duplicates.duplicate_families.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: theme.colors.warning, fontFamily: theme.fonts.primary, marginBottom: '8px' }}>
+                      Possible duplicate families ({duplicates.duplicate_families.length})
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {duplicates.duplicate_families.map((d, i) => (
+                        <div key={i} style={{ background: theme.colors.warningLight, borderRadius: '8px', padding: '10px 14px', fontSize: '12px', fontFamily: theme.fonts.primary }}>
+                          Matched on <strong>{d.matched_on}</strong>: {d.value}
+                          <div style={{ marginTop: '4px', color: theme.colors.textSecondary }}>
+                            {d.families.map(f => f.family_name).join(', ')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
 
         <div style={{ flex: 1, padding: '16px 28px 24px', display: 'flex', gap: '20px' }}>
 
@@ -434,6 +542,14 @@ function LotteryRunner() {
                                 </div>
                               )}
                             </div>
+                            {viewMode === 'registrants' && (
+                              <button
+                                onClick={() => handleDeleteRegistrant(student.id, `${student.first_name} ${student.last_name}`)}
+                                style={{ background: theme.colors.dangerLight, color: theme.colors.danger, border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '11px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', flexShrink: 0 }}
+                              >
+                                Remove
+                              </button>
+                            )}
                             {showResults && (
                               <div>
                                 {student.assigned_club ? (
