@@ -15,6 +15,7 @@ from models.waitlist import Waitlist
 from models.club import Club
 from models.meeting_date import MeetingDate
 from typing import Optional
+from models.school import School
 
 router = APIRouter(prefix="/families", tags=["Families"])
 
@@ -294,10 +295,13 @@ def update_choices(
     db: Session = Depends(get_db)
 ):
     """Update a student's club choices. Only the family creator may edit."""
+    school = db.query(School).filter(School.id == current_user.school_id).first()
+    if school and school.registration_locked:
+        raise HTTPException(status_code=403, detail="The window for registration edits has passed. Contact your child's teacher if you need to make a change.")
+
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-
     link = db.query(ParentFamily).filter(
         ParentFamily.parent_id == current_user.id,
         ParentFamily.family_id == student.family_id
@@ -306,12 +310,10 @@ def update_choices(
         raise HTTPException(status_code=403, detail="You are not linked to this family")
     if link.role != "creator":
         raise HTTPException(status_code=403, detail="Only the family creator can edit club choices")
-
     student.choice1 = data.choice1
     student.choice2 = data.choice2
     student.choice3 = data.choice3
     db.commit()
-
     return {"message": "Club choices updated."}
 
 def _require_creator(db: Session, parent_id: int, family_id: int):
@@ -334,6 +336,10 @@ def add_student(
     db: Session = Depends(get_db)
 ):
     """Add a child to the family (creator only)."""
+    school = db.query(School).filter(School.id == current_user.school_id).first()
+    if school and school.registration_locked:
+        raise HTTPException(status_code=403, detail="The window for registration edits has passed. Contact your child's teacher if you need to make a change.")
+
     _require_creator(db, current_user.id, data.family_id)
     student = Student(
         first_name=data.first_name.strip(),

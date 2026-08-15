@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../../components/Sidebar'
-import { Trophy, Send, Users, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp, Search, List } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
+import { Trophy, Send, Users, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp, Search, List, Lock, Unlock } from 'lucide-react'
 
 function LotteryRunner() {
   const navigate = useNavigate()
@@ -17,15 +17,19 @@ function LotteryRunner() {
   const [error, setError] = useState('')
   const [viewMode, setViewMode] = useState('results')  // 'results' | 'registrants'
   const [searchTerm, setSearchTerm] = useState('')
+  const [locked, setLocked] = useState(false)
+  const [lockLoading, setLockLoading] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [familiesRes, resultsRes] = await Promise.all([
+        const [familiesRes, resultsRes, lockRes] = await Promise.all([
           api.get('/lottery/families'),
           api.get('/lottery/results'),
+          api.get('/dashboard/lock-status'),
         ])
         setFamilies(familiesRes.data)
+        setLocked(lockRes.data.registration_locked)
 
         // If there are existing assignments load them automatically
         const hasResults = resultsRes.data.total_assigned > 0 ||
@@ -104,6 +108,23 @@ function LotteryRunner() {
     }
   }
 
+  const handleToggleLock = async () => {
+    const newState = !locked
+    const confirmMsg = newState
+      ? 'Lock registration? Parents will no longer be able to add children or change club choices.'
+      : 'Unlock registration? Parents will be able to add children and change club choices again.'
+    if (!window.confirm(confirmMsg)) return
+    setLockLoading(true)
+    try {
+      const res = await api.put('/dashboard/lock-status', { locked: newState })
+      setLocked(res.data.registration_locked)
+    } catch (err) {
+      setError('Failed to update registration lock')
+    } finally {
+      setLockLoading(false)
+    }
+  }
+
   const toggleFamily = (familyId) => {
     const key = `${viewMode}-${familyId}`
     setExpandedFamilies(prev => ({ ...prev, [key]: !prev[key] }))
@@ -147,6 +168,28 @@ function LotteryRunner() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={handleToggleLock}
+              disabled={lockLoading}
+              style={{
+                background: locked ? theme.colors.dangerLight : 'white',
+                color: locked ? theme.colors.danger : theme.colors.textSecondary,
+                border: `1px solid ${locked ? theme.colors.danger : theme.colors.border}`,
+                borderRadius: '9px',
+                padding: '10px 16px',
+                fontSize: '13px',
+                fontWeight: '600',
+                fontFamily: theme.fonts.primary,
+                cursor: lockLoading ? 'not-allowed' : 'pointer',
+              }}>
+              {lockLoading ? (
+                'Updating…'
+              ) : locked ? (
+                <><Lock size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />Registration Locked</>
+              ) : (
+                <><Unlock size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />Lock Registration</>
+              )}
+            </button>
             {results && !lettersSent && (
               <button
                 onClick={handleSendLetters}
