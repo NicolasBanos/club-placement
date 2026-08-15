@@ -14,6 +14,7 @@ from models.assignment import Assignment
 from models.waitlist import Waitlist
 from models.club import Club
 from models.meeting_date import MeetingDate
+from typing import Optional
 
 router = APIRouter(prefix="/families", tags=["Families"])
 
@@ -279,6 +280,7 @@ def my_families(
                 {"id": p.id, "name": p.name, "phone": p.phone, "relationship_to_student": p.relationship_to_student}
                 for p in pickups
             ],
+            "email": family.email,
         })
 
     return result
@@ -400,3 +402,41 @@ def remove_pickup(
     db.delete(pickup)
     db.commit()
     return {"message": "Pickup removed."}
+class FamilyContactUpdate(BaseModel):
+    phone: Optional[str] = None
+    phone2: Optional[str] = None
+    phone2_owner: Optional[str] = None
+    email: Optional[str] = None
+
+
+
+@router.put("/{family_id}/contact")
+def update_family_contact(
+    family_id: int,
+    update: FamilyContactUpdate,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db)
+):
+    """Update the family's shared contact info. Any linked parent (creator or member) can edit."""
+    link = db.query(ParentFamily).filter(
+        ParentFamily.parent_id == current_user.id,
+        ParentFamily.family_id == family_id
+    ).first()
+    if not link:
+        raise HTTPException(status_code=403, detail="You are not linked to this family")
+
+    family = db.query(Family).filter(Family.id == family_id).first()
+    if not family:
+        raise HTTPException(status_code=404, detail="Family not found")
+
+    if update.phone is not None:
+        family.phone = update.phone.strip()
+    if update.phone2 is not None:
+        family.phone2 = update.phone2.strip() or None
+    if update.phone2_owner is not None:
+        family.phone2_owner = update.phone2_owner.strip() or None
+    if update.email is not None:
+        family.email = update.email.strip()
+
+    db.commit()
+    return {"message": "Contact info updated successfully."}

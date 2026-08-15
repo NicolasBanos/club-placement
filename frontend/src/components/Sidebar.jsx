@@ -42,6 +42,7 @@ function Sidebar() {
   const getInitial = () => firstName ? firstName[0].toUpperCase() : '?'
 
   const [unreadCount, setUnreadCount] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     api.get('/messages/unread-count')
@@ -53,6 +54,12 @@ function Sidebar() {
     if (role === 'coordinator') return 'COORDINATOR'
     if (role === 'teacher') return 'TEACHER'
     return 'PARENT'
+  }
+
+  const getAccountPath = () => {
+    if (role === 'coordinator') return '/coordinator/account'
+    if (role === 'teacher') return '/teacher/account'
+    return '/parent/account'
   }
 
   const getLinks = () => {
@@ -94,13 +101,40 @@ function Sidebar() {
       </div>
 
       {/* User */}
-      <div style={styles.userArea}>
-        <div style={styles.avatar}>{getInitial()}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={styles.userName}>{firstName}</div>
-          <div style={styles.roleBadge}>{getRoleLabel()}</div>
+      <div style={{ position: 'relative' }}>
+        <div style={{ ...styles.userArea, cursor: 'pointer' }} onClick={() => setMenuOpen(!menuOpen)}>
+          <div style={styles.avatar}>{getInitial()}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={styles.userName}>{firstName}</div>
+            <div style={styles.roleBadge}>{getRoleLabel()}</div>
+          </div>
+          <ChevronDown
+            size={14}
+            color="rgba(255,255,255,0.3)"
+            style={{ transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
+          />
         </div>
-        <ChevronDown size={14} color="rgba(255,255,255,0.3)" />
+
+        {menuOpen && (
+          <div style={{
+            position: 'absolute', top: '100%', left: '12px', right: '12px', zIndex: 10,
+            background: 'white', borderRadius: '9px', boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            overflow: 'hidden', marginTop: '4px',
+          }}>
+            <div
+              onClick={() => { setMenuOpen(false); navigate(getAccountPath()) }}
+              style={{ padding: '10px 14px', fontSize: '13px', fontFamily: theme.fonts.primary, color: '#333', cursor: 'pointer' }}
+            >
+              Account Settings
+            </div>
+            <div
+              onClick={handleLogout}
+              style={{ padding: '10px 14px', fontSize: '13px', fontFamily: theme.fonts.primary, color: theme.colors.danger, cursor: 'pointer', borderTop: `1px solid ${theme.colors.border}` }}
+            >
+              Sign out
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Nav */}

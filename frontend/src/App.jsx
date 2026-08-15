@@ -21,6 +21,7 @@ import AttendanceSubmission from './pages/teacher/AttendanceSubmission'
 import TeacherMessages from './pages/teacher/TeacherMessages'
 import ParentMessages from './pages/parent/ParentMessages'
 import CoordinatorMessages from './pages/coordinator/CoordinatorMessages'
+import AccountSettings from './pages/AccountSettings'
 
 function App() {
   return (
@@ -123,6 +124,31 @@ function App() {
         />
 
         <Route 
+          path="/coordinator/account" 
+          element={
+            <ProtectedRoute allowedRoles={['coordinator']}>
+              <AccountSettings />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/teacher/account" 
+          element={
+            <ProtectedRoute allowedRoles={['teacher', 'coordinator']}>
+              <AccountSettings />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/parent/account" 
+          element={
+            <ProtectedRoute allowedRoles={['parent']}>
+              <AccountSettings />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
           path="/teacher/messages" 
           element={
             <ProtectedRoute allowedRoles={['teacher', 'coordinator']}>
@@ -167,6 +193,14 @@ function App() {
               <ParentDashboard />
             </ProtectedRoute>
           }
+        />
+        <Route 
+          path="/parent/account" 
+          element={
+            <ProtectedRoute allowedRoles={['parent']}>
+              <AccountSettings />
+            </ProtectedRoute>
+          } 
         />
 
         <Route 
