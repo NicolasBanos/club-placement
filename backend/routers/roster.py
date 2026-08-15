@@ -9,6 +9,9 @@ from models.family import Family
 from models.assignment import Assignment
 from models.waitlist import Waitlist
 from datetime import date
+from models.parent_family import ParentFamily
+from models.authorized_pickup import AuthorizedPickup
+
 
 router = APIRouter(prefix="/roster", tags=["Roster"])
 
@@ -31,6 +34,27 @@ def get_rosters(
         for a in assignments:
             student = db.query(Student).filter(Student.id == a.student_id).first()
             family = db.query(Family).filter(Family.id == student.family_id).first()
+
+            pickups = []
+            linked_parents = []
+            if family:
+                for p in db.query(AuthorizedPickup).filter(AuthorizedPickup.family_id == family.id).all():
+                    pickups.append({
+                        "name": p.name,
+                        "phone": p.phone,
+                        "relationship_to_student": p.relationship_to_student,
+                    })
+                links = db.query(ParentFamily).filter(ParentFamily.family_id == family.id).all()
+                for link in links:
+                    parent_user = db.query(User).filter(User.id == link.parent_id).first()
+                    if parent_user:
+                        linked_parents.append({
+                            "id": parent_user.id,
+                            "name": f"{parent_user.first_name} {parent_user.last_name}",
+                            "email": parent_user.email,
+                            "role": link.role,
+                        })
+
             enrolled.append({
                 "assignment_id": a.id,
                 "student_id": student.id,
@@ -40,6 +64,15 @@ def get_rosters(
                 "teacher": student.teacher,
                 "family_name": family.family_name if family else "",
                 "dismissal_method": family.dismissal_method if family else "",
+                "pickups": pickups,
+                "primary_contact": {
+                    "name": f"{family.parent_first_name} {family.parent_last_name}" if family else "",
+                    "phone": family.phone if family else "",
+                    "phone2": family.phone2 if family else None,
+                    "phone2_owner": family.phone2_owner if family else None,
+                    "email": family.email if family else "",
+                } if family else None,
+                "linked_parents": linked_parents,
             })
 
         waitlist = db.query(Waitlist).filter(

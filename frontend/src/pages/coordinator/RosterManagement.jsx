@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../../components/Sidebar'
-import { Users, Clock, Check, X, AlertCircle, ClipboardList, ArrowUp, ArrowDown, ChevronUp, ChevronDown } from 'lucide-react'
+import { Users, Clock, Check, X, AlertCircle, ClipboardList, ArrowUp, ArrowDown, ChevronUp, ChevronDown, ChevronRight, Phone, UserCheck } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
 
@@ -14,6 +14,7 @@ function RosterManagement() {
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('success')
   const [activeTab, setActiveTab] = useState('enrolled')
+  const [expandedStudent, setExpandedStudent] = useState(null)
 
   const fetchRosters = async () => {
     try {
@@ -299,37 +300,96 @@ function RosterManagement() {
                     <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textAlign: 'center', padding: '20px 0' }}>No students enrolled yet</div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {selectedClub.enrolled.map(student => (
-                        <div key={student.student_id} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          padding: '12px',
-                          background: theme.colors.background,
-                          borderRadius: '8px',
-                        }}>
-                          <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
-                            {student.first_name[0]}{student.last_name[0]}
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#333', fontFamily: theme.fonts.primary }}>
-                              {student.first_name} {student.last_name}
-                              <span style={{ fontSize: '11px', fontWeight: '400', color: theme.colors.textMuted, marginLeft: '8px' }}>
-                                Grade {GRADE_LABELS[student.grade]}
-                              </span>
+                      {selectedClub.enrolled.map(student => {
+                        const isOpen = expandedStudent === student.student_id
+                        const sortedParents = [...(student.linked_parents || [])].sort((a, b) => a.role === 'creator' ? -1 : 1)
+                        return (
+                          <div key={student.student_id} style={{ background: theme.colors.background, borderRadius: '8px', overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px' }}>
+                              <button
+                                onClick={() => setExpandedStudent(isOpen ? null : student.student_id)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: '2px', flexShrink: 0 }}>
+                                {isOpen ? <ChevronDown size={14} color={theme.colors.textMuted} /> : <ChevronRight size={14} color={theme.colors.textMuted} />}
+                              </button>
+                              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
+                                {student.first_name[0]}{student.last_name[0]}
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '13px', fontWeight: '600', color: '#333', fontFamily: theme.fonts.primary }}>
+                                  {student.first_name} {student.last_name}
+                                  <span style={{ fontSize: '11px', fontWeight: '400', color: theme.colors.textMuted, marginLeft: '8px' }}>
+                                    Grade {GRADE_LABELS[student.grade]}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>
+                                  {student.family_name} family · {student.teacher} · {student.dismissal_method}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleRemoveStudent(student.student_id, `${student.first_name} ${student.last_name}`)}
+                                disabled={actionLoading}
+                                style={{ background: theme.colors.dangerLight, color: theme.colors.danger, border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <X size={12} /> Remove
+                              </button>
                             </div>
-                            <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>
-                              {student.family_name} family · {student.teacher} · {student.dismissal_method}
-                            </div>
+
+                            {isOpen && (
+                              <div style={{ borderTop: `1px solid ${theme.colors.border}`, padding: '12px 16px 14px 46px' }}>
+
+                                <div style={{ fontSize: '10px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <UserCheck size={11} /> Authorized pickups
+                                </div>
+                                {(!student.pickups || student.pickups.length === 0) ? (
+                                  <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontStyle: 'italic' }}>No authorized pickups on file.</div>
+                                ) : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    {student.pickups.map((p, i) => (
+                                      <div key={i} style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <strong>{p.name}</strong>
+                                        {p.relationship_to_student && <span style={{ color: theme.colors.textMuted }}>· {p.relationship_to_student}</span>}
+                                        {p.phone && <span style={{ color: theme.colors.textMuted, display: 'flex', alignItems: 'center', gap: '3px' }}><Phone size={10} /> {p.phone}</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <div style={{ fontSize: '10px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase', letterSpacing: '0.03em', margin: '12px 0 6px' }}>
+                                  Primary contact
+                                </div>
+                                {student.primary_contact && (
+                                  <div style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+                                    <strong>{student.primary_contact.name}</strong>
+                                    <span style={{ color: theme.colors.textMuted, display: 'flex', alignItems: 'center', gap: '3px' }}><Phone size={10} /> {student.primary_contact.phone}</span>
+                                    {student.primary_contact.phone2 && (
+                                      <span style={{ color: theme.colors.textMuted, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                        <Phone size={10} /> {student.primary_contact.phone2}{student.primary_contact.phone2_owner ? ` (${student.primary_contact.phone2_owner})` : ''}
+                                      </span>
+                                    )}
+                                    <span style={{ color: theme.colors.textMuted }}>{student.primary_contact.email}</span>
+                                  </div>
+                                )}
+
+                                {sortedParents.length > 0 && (
+                                  <>
+                                    <div style={{ fontSize: '10px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase', letterSpacing: '0.03em', margin: '12px 0 6px' }}>
+                                      Linked parent accounts
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                      {sortedParents.map((p, i) => (
+                                        <div key={i} style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <strong>{p.name}</strong>
+                                          <span style={{ color: theme.colors.textMuted, textTransform: 'capitalize' }}>{p.role}</span>
+                                          <span style={{ color: theme.colors.textMuted }}>{p.email}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <button
-                            onClick={() => handleRemoveStudent(student.student_id, `${student.first_name} ${student.last_name}`)}
-                            disabled={actionLoading}
-                            style={{ background: theme.colors.dangerLight, color: theme.colors.danger, border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <X size={12} /> Remove
-                          </button>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
