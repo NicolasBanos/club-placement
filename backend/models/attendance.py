@@ -16,6 +16,7 @@ class Attendance(Base):
     excuse_reason = Column(String, nullable=True)
     excuse_status = Column(String, default="none")
     submitted_at = Column(String, nullable=True)
+    submitted_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     reviewed_at = Column(String, nullable=True)
     reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 

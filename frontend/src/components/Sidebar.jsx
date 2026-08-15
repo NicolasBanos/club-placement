@@ -43,12 +43,28 @@ function Sidebar() {
 
   const [unreadCount, setUnreadCount] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [pendingExcusesCount, setPendingExcusesCount] = useState(0)
 
   useEffect(() => {
     api.get('/messages/unread-count')
       .then(res => setUnreadCount(res.data.unread_count))
       .catch(() => {})
-  }, [location.pathname])
+
+    if (role === 'coordinator') {
+      api.get('/attendance/excuses/pending')
+        .then(res => setPendingExcusesCount(res.data.length))
+        .catch(() => {})
+    }
+
+    if (role === 'parent') {
+      api.get('/attendance/excuses/mine')
+        .then(res => {
+          const needsExcuse = res.data.filter(e => e.excuse_status === 'none' && !e.deadline_passed)
+          setPendingExcusesCount(needsExcuse.length)
+        })
+        .catch(() => {})
+    }
+  }, [location.pathname, role])
 
   const getRoleLabel = () => {
     if (role === 'coordinator') return 'COORDINATOR'
@@ -64,11 +80,15 @@ function Sidebar() {
 
   const getLinks = () => {
     const base = role === 'coordinator' ? coordinatorLinks : role === 'teacher' ? teacherLinks : parentLinks
-    return base.map(link =>
-      link.path.endsWith('/messages') && unreadCount > 0
-        ? { ...link, badge: unreadCount }
-        : link
-    )
+    return base.map(link => {
+      if (link.path.endsWith('/messages') && unreadCount > 0) {
+        return { ...link, badge: unreadCount }
+      }
+      if (link.path.endsWith('/excuses') && pendingExcusesCount > 0) {
+        return { ...link, badge: pendingExcusesCount }
+      }
+      return link
+    })
   }
 
   const handleLogout = () => {

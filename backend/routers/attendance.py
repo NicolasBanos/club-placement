@@ -290,6 +290,8 @@ def list_pending_excuses(
         meeting = db.query(MeetingDate).filter(MeetingDate.id == a.meeting_date_id).first()
         club = db.query(Club).filter(Club.id == meeting.club_id).first() if meeting else None
 
+        submitter = db.query(User).filter(User.id == a.submitted_by).first() if a.submitted_by else None
+
         result.append({
             "attendance_id": a.id,
             "student_id": a.student_id,
@@ -298,9 +300,11 @@ def list_pending_excuses(
             "club_id": club.id if club else None,
             "club_name": club.name if club else "",
             "absence_date": meeting.date if meeting else "",
+            "late_pickup": a.late_pickup,
             "is_first_day": _is_first_day(db, club.id, a.meeting_date_id) if club else False,
             "excuse_reason": a.excuse_reason,
             "submitted_at": a.submitted_at,
+            "submitted_by_name": f"{submitter.first_name} {submitter.last_name}" if submitter else "Unknown",
         })
 
     return result
@@ -616,7 +620,9 @@ def my_excuses(
     for a in absences:
         student = db.query(Student).filter(Student.id == a.student_id).first()
         meeting = db.query(MeetingDate).filter(MeetingDate.id == a.meeting_date_id).first()
-        club = db.query(Club).filter(Club.id == meeting.club_id).first() if meeting else None
+        if not meeting:
+            continue  # orphaned record — skip rather than show broken data
+        club = db.query(Club).filter(Club.id == meeting.club_id).first()
 
         deadline_passed = False
         days_remaining = None
@@ -633,6 +639,7 @@ def my_excuses(
             "grade": student.grade if student else None,
             "club_name": club.name if club else "",
             "absence_date": meeting.date if meeting else "",
+            "late_pickup": a.late_pickup,
             "excuse_status": a.excuse_status,
             "excuse_reason": a.excuse_reason,
             "submitted_at": a.submitted_at,
@@ -692,6 +699,7 @@ def submit_excuse(
     a.excuse_reason = submission.excuse_reason.strip()
     a.excuse_status = "pending"
     a.submitted_at = datetime.utcnow().isoformat()
+    a.submitted_by = current_user.id
     db.commit()
 
     return {"message": "Excuse submitted and sent to the coordinator for review."}

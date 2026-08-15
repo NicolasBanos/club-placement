@@ -10,6 +10,10 @@ from models.meeting_date import MeetingDate
 from models.student import Student
 from models.school import School
 from pydantic import BaseModel
+from models.attendance import Attendance
+from models.message_thread import MessageThread
+from models.thread_participant import ThreadParticipant
+from models.message import Message
 
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -38,6 +42,26 @@ def get_dashboard_stats(
     clubs = db.query(Club).all()
     clubs_at_capacity = sum(1 for c in clubs if len(c.assignments) >= c.max_students)
 
+    pending_excuses = db.query(Attendance).filter(Attendance.excuse_status == "pending").count()
+
+    my_thread_ids = [
+        tp.thread_id for tp in
+        db.query(ThreadParticipant).filter(ThreadParticipant.user_id == current_user.id).all()
+    ]
+    unread_messages = 0
+    for thread_id in my_thread_ids:
+        last_message = db.query(Message).filter(
+            Message.thread_id == thread_id
+        ).order_by(Message.sent_at.desc()).first()
+        if not last_message or last_message.sender_id == current_user.id:
+            continue
+        my_row = db.query(ThreadParticipant).filter(
+            ThreadParticipant.thread_id == thread_id,
+            ThreadParticipant.user_id == current_user.id
+        ).first()
+        if not my_row.last_read_at or last_message.sent_at > my_row.last_read_at:
+            unread_messages += 1
+
     return {
         "total_enrolled": total_enrolled,
         "total_waitlisted": total_waitlisted,
@@ -45,8 +69,8 @@ def get_dashboard_stats(
         "total_students": total_students,
         "total_unassigned": total_unassigned,
         "clubs_at_capacity": clubs_at_capacity,
-        "pending_excuses": 0,
-        "unread_messages": 0,
+        "pending_excuses": pending_excuses,
+        "unread_messages": unread_messages,
     }
 
 
