@@ -2,6 +2,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Home, Users, Trophy, ClipboardList, List, FileCheck, CalendarCheck, BarChart2, MessageSquare, Upload, LogOut, ChevronDown, School, UserPlus } from 'lucide-react'
 import theme from '../theme'
 import ppeLogo from '../assets/ppe-logo.png'
+import { useState, useEffect } from 'react'
+import api from '../api/axios'
 
 const coordinatorLinks = [
   { label: 'Dashboard', icon: Home, path: '/coordinator' },
@@ -39,6 +41,14 @@ function Sidebar() {
 
   const getInitial = () => firstName ? firstName[0].toUpperCase() : '?'
 
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    api.get('/messages/unread-count')
+      .then(res => setUnreadCount(res.data.unread_count))
+      .catch(() => {})
+  }, [location.pathname])
+
   const getRoleLabel = () => {
     if (role === 'coordinator') return 'COORDINATOR'
     if (role === 'teacher') return 'TEACHER'
@@ -46,9 +56,12 @@ function Sidebar() {
   }
 
   const getLinks = () => {
-    if (role === 'coordinator') return coordinatorLinks
-    if (role === 'teacher') return teacherLinks
-    return parentLinks
+    const base = role === 'coordinator' ? coordinatorLinks : role === 'teacher' ? teacherLinks : parentLinks
+    return base.map(link =>
+      link.path.endsWith('/messages') && unreadCount > 0
+        ? { ...link, badge: unreadCount }
+        : link
+    )
   }
 
   const handleLogout = () => {

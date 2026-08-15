@@ -20,6 +20,7 @@ import MyClub from './pages/teacher/MyClub'
 import AttendanceSubmission from './pages/teacher/AttendanceSubmission'
 import TeacherMessages from './pages/teacher/TeacherMessages'
 import ParentMessages from './pages/parent/ParentMessages'
+import CoordinatorMessages from './pages/coordinator/CoordinatorMessages'
 
 function App() {
   return (
@@ -108,6 +109,15 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['coordinator']}>
               <SpreadsheetUpload />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/coordinator/messages"
+          element={
+            <ProtectedRoute allowedRoles={['coordinator']}>
+              <CoordinatorMessages />
             </ProtectedRoute>
           }
         />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Sidebar from '../../components/Sidebar'
-import { Send, School, Star, Search, Plus, X } from 'lucide-react'
+import { Send, User, Megaphone, Users, School, ChevronLeft, Search, Plus, X } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
 
@@ -12,25 +12,28 @@ function formatTimestamp(iso) {
 
 function threadCategory(thread) {
   if (thread.is_announcement) return 'announcements'
-  return 'teachers'
-}
-
-function isCoordinatorThread(thread) {
-  if (thread.is_announcement) return false
   const other = thread.participants[0]
-  return other && other.role === 'coordinator'
+  if (!other) return 'teachers'
+  if (other.role === 'teacher') return 'teachers'
+  return 'students'
 }
 
 const FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'teachers', label: 'Teachers' },
+  { key: 'students', label: 'Students' },
   { key: 'announcements', label: 'Announcements' },
+]
+
+const AUDIENCE_OPTIONS = [
+  { value: 'club_parents', label: 'All parents in a club' },
+  { value: 'all_families', label: 'All families (school-wide)' },
+  { value: 'all_teachers', label: 'All teachers' },
 ]
 
 function ThreadListRow({ thread, isActive, onClick }) {
   const other = thread.participants[0]
   const label = thread.is_announcement ? thread.subject : (other ? other.name : 'Unknown')
-  const isCoord = isCoordinatorThread(thread)
   return (
     <div
       onClick={onClick}
@@ -43,8 +46,7 @@ function ThreadListRow({ thread, isActive, onClick }) {
       <div style={{ marginTop: '5px', width: '8px', height: '8px', borderRadius: '50%', background: thread.is_unread ? '#e53935' : 'transparent', flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px' }}>
-          <span style={{ fontSize: '13px', fontWeight: thread.is_unread ? '800' : '600', color: '#333', fontFamily: theme.fonts.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            {isCoord && <Star size={12} color={theme.colors.secondary} fill={theme.colors.secondary} />}
+          <span style={{ fontSize: '13px', fontWeight: thread.is_unread ? '800' : '600', color: '#333', fontFamily: theme.fonts.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {label}
           </span>
           {thread.last_message && (
@@ -54,9 +56,7 @@ function ThreadListRow({ thread, isActive, onClick }) {
           )}
         </div>
         {thread.is_announcement && (
-          <div style={{ fontSize: '10px', fontWeight: '700', color: theme.colors.warning, fontFamily: theme.fonts.primary, marginTop: '1px' }}>
-            ANNOUNCEMENT · {thread.created_by_name}
-          </div>
+          <div style={{ fontSize: '10px', fontWeight: '700', color: theme.colors.warning, fontFamily: theme.fonts.primary, marginTop: '1px' }}>ANNOUNCEMENT</div>
         )}
         {thread.last_message && (
           <div style={{
@@ -122,21 +122,31 @@ function ThreadPanel({ threadData, me, draft, setDraft, sendMessage, canReply })
   )
 }
 
-function ParentMessages() {
+function CoordinatorMessages() {
   const [me, setMe] = useState(null)
   const [threads, setThreads] = useState([])
   const [filter, setFilter] = useState('all')
 
   const [teachers, setTeachers] = useState([])
+  const [students, setStudents] = useState([])
+  const [clubs, setClubs] = useState([])
 
   const [activeThreadId, setActiveThreadId] = useState(null)
   const [threadData, setThreadData] = useState(null)
   const [draft, setDraft] = useState('')
 
   const [composing, setComposing] = useState(false)
+  const [composeType, setComposeType] = useState(null)        // 'direct' | 'announcement'
+  const [composeWho, setComposeWho] = useState(null)          // 'teacher' | 'parent'
   const [composeSearch, setComposeSearch] = useState('')
-  const [composeRecipient, setComposeRecipient] = useState(null)
+  const [composeSelectedStudent, setComposeSelectedStudent] = useState(null)
+  const [composeRecipient, setComposeRecipient] = useState(null) // { id, name }
   const [composeBody, setComposeBody] = useState('')
+
+  const [audienceType, setAudienceType] = useState('club_parents')
+  const [audienceClubId, setAudienceClubId] = useState('')
+  const [annSubject, setAnnSubject] = useState('')
+  const [annBody, setAnnBody] = useState('')
 
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState('success')
@@ -151,7 +161,9 @@ function ParentMessages() {
 
   useEffect(() => {
     api.get('/users/me').then(res => setMe(res.data)).catch(err => console.error(err))
-    api.get('/messages/my-teachers').then(res => setTeachers(res.data)).catch(err => console.error(err))
+    api.get('/messages/all-teachers').then(res => setTeachers(res.data)).catch(err => console.error(err))
+    api.get('/messages/all-students').then(res => setStudents(res.data)).catch(err => console.error(err))
+    api.get('/clubs/').then(res => setClubs(res.data)).catch(err => console.error(err))
     loadThreads()
   }, [])
 
@@ -180,16 +192,25 @@ function ParentMessages() {
     setActiveThreadId(null)
     setThreadData(null)
     setComposing(true)
+    setComposeType(null)
+    setComposeWho(null)
     setComposeSearch('')
+    setComposeSelectedStudent(null)
     setComposeRecipient(null)
     setComposeBody('')
+    setAudienceType('club_parents')
+    setAudienceClubId('')
+    setAnnSubject('')
+    setAnnBody('')
   }
 
-  const cancelCompose = () => setComposing(false)
+  const cancelCompose = () => {
+    setComposing(false)
+  }
 
   const sendDirectFromCompose = async () => {
     if (!composeRecipient || !composeBody.trim()) {
-      flash('Please pick a teacher and write a message', 'error'); return
+      flash('Please pick a recipient and write a message', 'error'); return
     }
     try {
       const res = await api.post('/messages/start', { recipient_id: composeRecipient.id, body: composeBody.trim() })
@@ -201,10 +222,32 @@ function ParentMessages() {
     }
   }
 
+  const sendAnnouncementFromCompose = async () => {
+    if (!annSubject.trim() || !annBody.trim()) {
+      flash('Please fill in a subject and message', 'error'); return
+    }
+    if (audienceType === 'club_parents' && !audienceClubId) {
+      flash('Please select a club', 'error'); return
+    }
+    try {
+      const payload = { audience_type: audienceType, subject: annSubject.trim(), body: annBody.trim() }
+      if (audienceType === 'club_parents') payload.club_id = Number(audienceClubId)
+      const res = await api.post('/messages/announcements', payload)
+      flash(`Announcement sent to ${res.data.recipient_count} recipient(s).`)
+      setComposing(false)
+      loadThreads()
+      openThread(res.data.thread_id)
+    } catch (e) {
+      flash(e.response?.data?.detail || 'Failed to send announcement', 'error')
+    }
+  }
+
   const filteredThreads = threads.filter(t => filter === 'all' || threadCategory(t) === filter)
-  const filteredTeachers = teachers.filter(t => t.name.toLowerCase().includes(composeSearch.toLowerCase()))
 
   const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '9px 12px', fontSize: '13px', fontFamily: theme.fonts.primary, border: `1px solid ${theme.colors.border}`, borderRadius: '8px' }
+
+  const filteredTeachers = teachers.filter(t => t.name.toLowerCase().includes(composeSearch.toLowerCase()))
+  const filteredStudents = students.filter(s => `${s.first_name} ${s.last_name}`.toLowerCase().includes(composeSearch.toLowerCase()))
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -214,7 +257,7 @@ function ParentMessages() {
         <div style={{ background: 'white', padding: '16px 28px', borderBottom: `1px solid ${theme.colors.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>Messages</div>
-            <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px' }}>Talk with your children's teachers</div>
+            <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px' }}>Message teachers, families, or send announcements</div>
           </div>
           <button
             onClick={startCompose}
@@ -230,6 +273,7 @@ function ParentMessages() {
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
+          {/* Left column: filters + thread list */}
           <div style={{ width: '320px', flexShrink: 0, borderRight: `1px solid ${theme.colors.border}`, display: 'flex', flexDirection: 'column', background: 'white' }}>
             <div style={{ display: 'flex', gap: '6px', padding: '14px 16px', flexWrap: 'wrap', borderBottom: `1px solid ${theme.colors.border}` }}>
               {FILTERS.map(f => (
@@ -257,6 +301,7 @@ function ParentMessages() {
             </div>
           </div>
 
+          {/* Right column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: theme.colors.background }}>
             {composing ? (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -268,24 +313,105 @@ function ParentMessages() {
                 </div>
 
                 <div style={{ flex: 1, overflowY: 'auto', padding: '24px', maxWidth: '520px' }}>
-                  {!composeRecipient ? (
+
+                  {!composeType && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div
+                        onClick={() => setComposeType('direct')}
+                        style={{ background: 'white', border: `1px solid ${theme.colors.border}`, borderRadius: theme.borderRadius.lg, padding: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                      >
+                        <User size={20} color={theme.colors.primary} />
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>Direct message</div>
+                          <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Message an individual teacher or parent</div>
+                        </div>
+                      </div>
+                      <div
+                        onClick={() => setComposeType('announcement')}
+                        style={{ background: 'white', border: `1px solid ${theme.colors.border}`, borderRadius: theme.borderRadius.lg, padding: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                      >
+                        <Megaphone size={20} color={theme.colors.primary} />
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>Announcement</div>
+                          <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Broadcast to a group — club, school, or all teachers</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {composeType === 'direct' && !composeWho && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div
+                        onClick={() => setComposeWho('teacher')}
+                        style={{ background: 'white', border: `1px solid ${theme.colors.border}`, borderRadius: theme.borderRadius.lg, padding: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                      >
+                        <School size={20} color={theme.colors.primary} />
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>A teacher</div>
+                      </div>
+                      <div
+                        onClick={() => setComposeWho('parent')}
+                        style={{ background: 'white', border: `1px solid ${theme.colors.border}`, borderRadius: theme.borderRadius.lg, padding: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                      >
+                        <Users size={20} color={theme.colors.primary} />
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>A parent (via student)</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {composeType === 'direct' && composeWho === 'teacher' && !composeRecipient && (
                     <div>
                       <div style={{ position: 'relative', marginBottom: '12px' }}>
                         <Search size={14} color={theme.colors.textMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
                         <input value={composeSearch} onChange={e => setComposeSearch(e.target.value)} placeholder="Search teachers…" style={{ ...inputStyle, padding: '9px 12px 9px 34px' }} />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {filteredTeachers.length === 0 ? (
-                          <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>No teachers to message yet.</div>
-                        ) : filteredTeachers.map(t => (
+                        {filteredTeachers.map(t => (
                           <div key={t.id} onClick={() => setComposeRecipient({ id: t.id, name: t.name })} style={{ background: 'white', borderRadius: '9px', border: `1px solid ${theme.colors.border}`, padding: '12px 14px', cursor: 'pointer' }}>
                             <div style={{ fontSize: '13px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>{t.name}</div>
-                            <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>{t.club_name}</div>
+                            <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>{t.club_name || 'No club assigned'}</div>
                           </div>
                         ))}
                       </div>
                     </div>
-                  ) : (
+                  )}
+
+                  {composeType === 'direct' && composeWho === 'parent' && !composeSelectedStudent && (
+                    <div>
+                      <div style={{ position: 'relative', marginBottom: '12px' }}>
+                        <Search size={14} color={theme.colors.textMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                        <input value={composeSearch} onChange={e => setComposeSearch(e.target.value)} placeholder="Search students…" style={{ ...inputStyle, padding: '9px 12px 9px 34px' }} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {filteredStudents.map(s => (
+                          <div key={s.student_id} onClick={() => setComposeSelectedStudent(s)} style={{ background: 'white', borderRadius: '9px', border: `1px solid ${theme.colors.border}`, padding: '12px 14px', cursor: 'pointer' }}>
+                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>{s.first_name} {s.last_name}</div>
+                            <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>{s.contacts.length} contact{s.contacts.length === 1 ? '' : 's'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {composeType === 'direct' && composeWho === 'parent' && composeSelectedStudent && !composeRecipient && (
+                    <div>
+                      <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginBottom: '10px' }}>
+                        Contacts for {composeSelectedStudent.first_name} {composeSelectedStudent.last_name}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {[...composeSelectedStudent.contacts].sort((a, b) => a.role === 'creator' ? -1 : 1).map(p => (
+                          <div key={p.id} onClick={() => setComposeRecipient({ id: p.id, name: p.name })} style={{ background: 'white', borderRadius: '9px', border: `1px solid ${theme.colors.border}`, padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                              <span style={{ fontSize: '13px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>{p.name}</span>
+                              {p.role === 'creator' && <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: '700', color: theme.colors.primary, background: theme.colors.primaryLight, padding: '2px 7px', borderRadius: '6px' }}>PRIMARY</span>}
+                            </div>
+                            <span style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>{p.email}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {composeType === 'direct' && composeRecipient && (
                     <div>
                       <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginBottom: '10px' }}>
                         To: <strong style={{ color: '#333' }}>{composeRecipient.name}</strong>
@@ -301,24 +427,36 @@ function ParentMessages() {
                       </button>
                     </div>
                   )}
+
+                  {composeType === 'announcement' && (
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '600', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary }}>Audience</label>
+                      <select value={audienceType} onChange={e => setAudienceType(e.target.value)} style={{ ...inputStyle, marginTop: '4px', marginBottom: '10px' }}>
+                        {AUDIENCE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+
+                      {audienceType === 'club_parents' && (
+                        <select value={audienceClubId} onChange={e => setAudienceClubId(e.target.value)} style={{ ...inputStyle, marginBottom: '10px' }}>
+                          <option value="">Select a club…</option>
+                          {clubs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      )}
+
+                      <input value={annSubject} onChange={e => setAnnSubject(e.target.value)} placeholder="Subject" style={{ ...inputStyle, marginBottom: '10px' }} />
+                      <textarea value={annBody} onChange={e => setAnnBody(e.target.value)} placeholder="Write your announcement…" style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }} />
+                      <button onClick={sendAnnouncementFromCompose} style={{ marginTop: '10px', background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer' }}>
+                        Send announcement
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : activeThreadId ? (
               <>
                 <div style={{ padding: '14px 24px', borderBottom: `1px solid ${theme.colors.border}`, background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {threads.find(t => t.thread_id === activeThreadId) && isCoordinatorThread(threads.find(t => t.thread_id === activeThreadId)) && (
-                        <Star size={13} color={theme.colors.secondary} fill={theme.colors.secondary} />
-                      )}
-                      {threadData?.subject || (threads.find(t => t.thread_id === activeThreadId)?.participants[0]?.name) || 'Conversation'}
-                    </div>
-                    {threadData?.is_announcement && (
-                      <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '1px' }}>
-                        Sent by {threads.find(t => t.thread_id === activeThreadId)?.created_by_name}
-                      </div>
-                    )}
-                  </div>
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
+                    {threadData?.subject || (threads.find(t => t.thread_id === activeThreadId)?.participants[0]?.name) || 'Conversation'}
+                  </span>
                 </div>
                 <ThreadPanel
                   threadData={threadData}
@@ -341,4 +479,4 @@ function ParentMessages() {
   )
 }
 
-export default ParentMessages
+export default CoordinatorMessages

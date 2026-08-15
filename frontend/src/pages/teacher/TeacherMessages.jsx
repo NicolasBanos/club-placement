@@ -1,8 +1,8 @@
+import { useState, useEffect, useRef } from 'react'
 import Sidebar from '../../components/Sidebar'
-import { Send, User, Megaphone, Users, MessageSquare, ChevronLeft, ChevronDown, ChevronRight, Search } from 'lucide-react'
+import { Send, User, Megaphone, Users, Search, Plus, X } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
-import { useState, useEffect, useRef } from 'react'
 
 function formatTimestamp(iso) {
   if (!iso) return ''
@@ -10,7 +10,65 @@ function formatTimestamp(iso) {
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
-const ThreadPanel = ({ threadData, me, draft, setDraft, sendMessage, onBack }) => {
+function threadCategory(thread) {
+  if (thread.is_announcement) return 'announcements'
+  const other = thread.participants[0]
+  if (!other) return 'students'
+  if (other.role === 'coordinator') return 'coordinator'
+  return 'students'
+}
+
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'coordinator', label: 'Coordinator' },
+  { key: 'students', label: 'Students' },
+  { key: 'announcements', label: 'Announcements' },
+]
+
+function ThreadListRow({ thread, isActive, onClick }) {
+  const other = thread.participants[0]
+  const label = thread.is_announcement ? thread.subject : (other ? other.name : 'Unknown')
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 16px', cursor: 'pointer',
+        background: isActive ? theme.colors.primaryLight : 'white',
+        borderBottom: `1px solid ${theme.colors.border}`,
+      }}
+    >
+      <div style={{ marginTop: '5px', width: '8px', height: '8px', borderRadius: '50%', background: thread.is_unread ? '#e53935' : 'transparent', flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px' }}>
+          <span style={{ fontSize: '13px', fontWeight: thread.is_unread ? '800' : '600', color: '#333', fontFamily: theme.fonts.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {label}
+          </span>
+          {thread.last_message && (
+            <span style={{ fontSize: '10px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {formatTimestamp(thread.last_message.sent_at)}
+            </span>
+          )}
+        </div>
+        {thread.is_announcement && (
+          <div style={{ fontSize: '10px', fontWeight: '700', color: theme.colors.warning, fontFamily: theme.fonts.primary, marginTop: '1px' }}>
+            ANNOUNCEMENT · {thread.created_by_name}
+          </div>
+        )}
+        {thread.last_message && (
+          <div style={{
+            fontSize: '12px', color: thread.is_unread ? theme.colors.textSecondary : theme.colors.textMuted,
+            fontFamily: theme.fonts.primary, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap', fontWeight: thread.is_unread ? '600' : '400',
+          }}>
+            {thread.last_message.body}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ThreadPanel({ threadData, me, draft, setDraft, sendMessage, canReply }) {
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -18,27 +76,18 @@ const ThreadPanel = ({ threadData, me, draft, setDraft, sendMessage, onBack }) =
   }, [threadData])
 
   return (
-    <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border}`, display: 'flex', flexDirection: 'column', height: '480px' }}>
-      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.colors.border}`, display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
-          <ChevronLeft size={18} color={theme.colors.textMuted} />
-        </button>
-        <span style={{ fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
-          {threadData?.subject || 'Conversation'}
-        </span>
-      </div>
-
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {(!threadData?.messages || threadData.messages.length === 0) ? (
           <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontStyle: 'italic' }}>No messages yet — say hello.</div>
         ) : threadData.messages.map(m => {
           const isMe = me && m.sender_id === me.id
           return (
-            <div key={m.id} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '75%' }}>
+            <div key={m.id} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '65%' }}>
               <div style={{
                 background: isMe ? theme.colors.primary : theme.colors.background,
                 color: isMe ? 'white' : theme.colors.textSecondary,
-                borderRadius: '10px', padding: '9px 13px', fontSize: '13px', fontFamily: theme.fonts.primary,
+                borderRadius: '12px', padding: '10px 14px', fontSize: '13px', fontFamily: theme.fonts.primary,
               }}>
                 {m.body}
               </div>
@@ -51,25 +100,28 @@ const ThreadPanel = ({ threadData, me, draft, setDraft, sendMessage, onBack }) =
         <div ref={bottomRef} />
       </div>
 
-      <div style={{ padding: '12px 16px', borderTop: `1px solid ${theme.colors.border}`, display: 'flex', gap: '8px' }}>
-        <input
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && sendMessage()}
-          placeholder="Type a message…"
-          style={{ flex: 1, padding: '9px 12px', fontSize: '13px', fontFamily: theme.fonts.primary, border: `1px solid ${theme.colors.border}`, borderRadius: '8px' }}
-        />
-        <button onClick={sendMessage} style={{ background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '8px', padding: '9px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-          <Send size={15} />
-        </button>
-      </div>
+      {canReply && (
+        <div style={{ padding: '14px 20px', borderTop: `1px solid ${theme.colors.border}`, display: 'flex', gap: '8px' }}>
+          <input
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && sendMessage()}
+            placeholder="Type a message…"
+            style={{ flex: 1, padding: '10px 14px', fontSize: '13px', fontFamily: theme.fonts.primary, border: `1px solid ${theme.colors.border}`, borderRadius: '9px' }}
+          />
+          <button onClick={sendMessage} style={{ background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '9px', padding: '10px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <Send size={15} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
 function TeacherMessages() {
   const [me, setMe] = useState(null)
-  const [tab, setTab] = useState('coordinator')  // coordinator | announcement | students
+  const [threads, setThreads] = useState([])
+  const [filter, setFilter] = useState('all')
 
   const [coordinator, setCoordinator] = useState(null)
   const [club, setClub] = useState(null)
@@ -79,17 +131,26 @@ function TeacherMessages() {
   const [threadData, setThreadData] = useState(null)
   const [draft, setDraft] = useState('')
 
+  const [composing, setComposing] = useState(false)
+  const [composeType, setComposeType] = useState(null)
+  const [composeWho, setComposeWho] = useState(null)
+  const [composeSearch, setComposeSearch] = useState('')
+  const [composeSelectedStudent, setComposeSelectedStudent] = useState(null)
+  const [composeRecipient, setComposeRecipient] = useState(null)
+  const [composeBody, setComposeBody] = useState('')
+
   const [annSubject, setAnnSubject] = useState('')
   const [annBody, setAnnBody] = useState('')
-  const [annHistory, setAnnHistory] = useState([])
+
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState('success')
 
-  const [studentSearch, setStudentSearch] = useState('')
-  const [expandedStudent, setExpandedStudent] = useState(null)
-
   const flash = (text, type = 'success') => {
     setMsg(text); setMsgType(type); setTimeout(() => setMsg(''), 3500)
+  }
+
+  const loadThreads = () => {
+    api.get('/messages/mine').then(res => setThreads(res.data)).catch(err => console.error(err))
   }
 
   useEffect(() => {
@@ -102,28 +163,17 @@ function TeacherMessages() {
         api.get(`/clubs/${c.id}/roster`).then(r2 => setStudents(r2.data.enrolled)).catch(err => console.error(err))
       }
     }).catch(err => console.error(err))
-    loadAnnouncementHistory()
+    loadThreads()
   }, [])
 
-  const loadAnnouncementHistory = () => {
-    api.get('/messages/mine').then(res => {
-      setAnnHistory(res.data.filter(t => t.is_announcement))
-    }).catch(err => console.error(err))
-  }
-
   const openThread = (threadId) => {
+    setComposing(false)
     setActiveThreadId(threadId)
     setDraft('')
-    api.get(`/messages/${threadId}`).then(res => setThreadData(res.data)).catch(err => console.error(err))
-  }
-
-  const openThreadWith = async (recipientId) => {
-    try {
-      const res = await api.post('/messages/thread-with', { recipient_id: recipientId })
-      openThread(res.data.thread_id)
-    } catch (e) {
-      flash(e.response?.data?.detail || 'Unable to open conversation', 'error')
-    }
+    api.get(`/messages/${threadId}`).then(res => {
+      setThreadData(res.data)
+      loadThreads()
+    }).catch(err => console.error(err))
   }
 
   const sendMessage = async () => {
@@ -137,7 +187,37 @@ function TeacherMessages() {
     }
   }
 
-  const sendAnnouncement = async () => {
+  const startCompose = () => {
+    setActiveThreadId(null)
+    setThreadData(null)
+    setComposing(true)
+    setComposeType(null)
+    setComposeWho(null)
+    setComposeSearch('')
+    setComposeSelectedStudent(null)
+    setComposeRecipient(null)
+    setComposeBody('')
+    setAnnSubject('')
+    setAnnBody('')
+  }
+
+  const cancelCompose = () => setComposing(false)
+
+  const sendDirectFromCompose = async () => {
+    if (!composeRecipient || !composeBody.trim()) {
+      flash('Please pick a recipient and write a message', 'error'); return
+    }
+    try {
+      const res = await api.post('/messages/start', { recipient_id: composeRecipient.id, body: composeBody.trim() })
+      setComposing(false)
+      loadThreads()
+      openThread(res.data.thread_id)
+    } catch (e) {
+      flash(e.response?.data?.detail || 'Failed to send message', 'error')
+    }
+  }
+
+  const sendAnnouncementFromCompose = async () => {
     if (!annSubject.trim() || !annBody.trim()) {
       flash('Please fill in a subject and message', 'error'); return
     }
@@ -148,191 +228,222 @@ function TeacherMessages() {
         body: annBody.trim(),
       })
       flash(`Announcement sent to ${res.data.recipient_count} recipient(s).`)
-      setAnnSubject(''); setAnnBody('')
-      loadAnnouncementHistory()
+      setComposing(false)
+      loadThreads()
+      openThread(res.data.thread_id)
     } catch (e) {
       flash(e.response?.data?.detail || 'Failed to send announcement', 'error')
     }
   }
 
-  const closeThread = () => { setActiveThreadId(null); setThreadData(null); setDraft('') }
+  const filteredThreads = threads.filter(t => filter === 'all' || threadCategory(t) === filter)
+  const filteredStudents = students.filter(s => `${s.first_name} ${s.last_name}`.toLowerCase().includes(composeSearch.toLowerCase()))
 
-  const tabBtn = (key, label, Icon) => (
-    <button
-      onClick={() => { setTab(key); closeThread() }}
-      style={{
-        display: 'flex', alignItems: 'center', gap: '6px',
-        background: tab === key ? theme.colors.primary : 'white',
-        color: tab === key ? 'white' : theme.colors.textSecondary,
-        border: `1px solid ${tab === key ? theme.colors.primary : theme.colors.border}`,
-        borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '600',
-        fontFamily: theme.fonts.primary, cursor: 'pointer',
-      }}
-    >
-      <Icon size={14} /> {label}
-    </button>
-  )
+  const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '9px 12px', fontSize: '13px', fontFamily: theme.fonts.primary, border: `1px solid ${theme.colors.border}`, borderRadius: '8px' }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: theme.colors.background }}>
 
-        <div style={{ background: 'white', padding: '16px 28px', borderBottom: `1px solid ${theme.colors.border}` }}>
-          <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>Messages</div>
-          <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px' }}>Talk with the coordinator or your students' families</div>
+        <div style={{ background: 'white', padding: '16px 28px', borderBottom: `1px solid ${theme.colors.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>Messages</div>
+            <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px' }}>Talk with the coordinator or your students' families</div>
+          </div>
+          <button
+            onClick={startCompose}
+            style={{ background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: '700', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Plus size={15} /> Compose
+          </button>
         </div>
 
         {msg && (
           <div style={{ margin: '16px 28px 0', background: msgType === 'error' ? theme.colors.dangerLight : theme.colors.primaryLight, border: `1px solid ${msgType === 'error' ? theme.colors.danger : theme.colors.border}`, borderRadius: '9px', padding: '12px 16px', color: msgType === 'error' ? theme.colors.danger : theme.colors.primary, fontSize: '13px', fontFamily: theme.fonts.primary, fontWeight: '600' }}>{msg}</div>
         )}
 
-        <div style={{ flex: 1, padding: '24px 28px', maxWidth: '820px' }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
-            {tabBtn('coordinator', 'Coordinator', User)}
-            {tabBtn('announcement', 'Announcement', Megaphone)}
-            {tabBtn('students', 'Students', Users)}
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+          <div style={{ width: '320px', flexShrink: 0, borderRight: `1px solid ${theme.colors.border}`, display: 'flex', flexDirection: 'column', background: 'white' }}>
+            <div style={{ display: 'flex', gap: '6px', padding: '14px 16px', flexWrap: 'wrap', borderBottom: `1px solid ${theme.colors.border}` }}>
+              {FILTERS.map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setFilter(f.key)}
+                  style={{
+                    background: filter === f.key ? theme.colors.primary : theme.colors.background,
+                    color: filter === f.key ? 'white' : theme.colors.textSecondary,
+                    border: 'none', borderRadius: '20px', padding: '5px 12px', fontSize: '11px', fontWeight: '700',
+                    fontFamily: theme.fonts.primary, cursor: 'pointer',
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {filteredThreads.length === 0 ? (
+                <div style={{ padding: '20px 16px', fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontStyle: 'italic' }}>No conversations yet.</div>
+              ) : filteredThreads.map(t => (
+                <ThreadListRow key={t.thread_id} thread={t} isActive={activeThreadId === t.thread_id} onClick={() => openThread(t.thread_id)} />
+              ))}
+            </div>
           </div>
 
-          {/* Coordinator tab */}
-          {tab === 'coordinator' && (
-            activeThreadId ? (
-              <ThreadPanel threadData={threadData} me={me} draft={draft} setDraft={setDraft} sendMessage={sendMessage} onBack={closeThread} />
-            ) : (
-              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border}`, padding: '20px' }}>
-                {coordinator ? (
-                  <div
-                    onClick={() => openThreadWith(coordinator.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '10px', borderRadius: '8px' }}
-                  >
-                    <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <User size={18} color={theme.colors.primary} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>{coordinator.name}</div>
-                      <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Coordinator — click to message</div>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Loading…</div>
-                )}
-              </div>
-            )
-          )}
-
-          {/* Announcement tab */}
-          {tab === 'announcement' && (
-            <>
-              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border}`, padding: '20px', marginBottom: '20px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, marginBottom: '10px' }}>
-                  New announcement to {club ? club.name : 'your class'}
-                </div>
-                <input
-                  value={annSubject}
-                  onChange={e => setAnnSubject(e.target.value)}
-                  placeholder="Subject"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', fontSize: '13px', fontFamily: theme.fonts.primary, border: `1px solid ${theme.colors.border}`, borderRadius: '8px', marginBottom: '10px' }}
-                />
-                <textarea
-                  value={annBody}
-                  onChange={e => setAnnBody(e.target.value)}
-                  placeholder="Write your announcement…"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', fontSize: '13px', fontFamily: theme.fonts.primary, border: `1px solid ${theme.colors.border}`, borderRadius: '8px', minHeight: '80px', resize: 'vertical' }}
-                />
-                <button
-                  onClick={sendAnnouncement}
-                  style={{ marginTop: '10px', background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer' }}
-                >
-                  Send announcement
-                </button>
-              </div>
-
-              <div style={{ fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, marginBottom: '10px' }}>Sent announcements</div>
-              {annHistory.length === 0 ? (
-                <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontStyle: 'italic' }}>None sent yet.</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {annHistory.map(t => (
-                    <div key={t.thread_id} style={{ background: 'white', borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border}`, padding: '14px 16px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>{t.subject}</div>
-                      {t.last_message && (
-                        <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '4px' }}>{t.last_message.body}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Students tab */}
-          {tab === 'students' && (
-            activeThreadId ? (
-              <ThreadPanel threadData={threadData} me={me} draft={draft} setDraft={setDraft} sendMessage={sendMessage} onBack={closeThread} />
-            ) : (
-              <>
-                <div style={{ position: 'relative', marginBottom: '14px' }}>
-                  <Search size={14} color={theme.colors.textMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input
-                    value={studentSearch}
-                    onChange={e => setStudentSearch(e.target.value)}
-                    placeholder="Search students…"
-                    style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px 9px 34px', fontSize: '13px', fontFamily: theme.fonts.primary, border: `1px solid ${theme.colors.border}`, borderRadius: '8px' }}
-                  />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: theme.colors.background }}>
+            {composing ? (
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <div style={{ padding: '14px 24px', borderBottom: `1px solid ${theme.colors.border}`, background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button onClick={cancelCompose} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                    <X size={18} color={theme.colors.textMuted} />
+                  </button>
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>New message</span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {students.length === 0 ? (
-                    <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>No students enrolled.</div>
-                  ) : students
-                    .filter(s => `${s.first_name} ${s.last_name}`.toLowerCase().includes(studentSearch.toLowerCase()))
-                    .map(s => {
-                      const isOpen = expandedStudent === s.student_id
-                      const sortedParents = [...s.linked_parents].sort((a, b) => a.role === 'creator' ? -1 : 1)
-                      return (
-                        <div key={s.student_id} style={{ background: 'white', borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border}`, overflow: 'hidden' }}>
-                          <div
-                            onClick={() => setExpandedStudent(isOpen ? null : s.student_id)}
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', cursor: 'pointer' }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <MessageSquare size={14} color={theme.colors.primary} />
-                              <span style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>{s.first_name} {s.last_name}</span>
-                              <span style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>
-                                {s.linked_parents.length} contact{s.linked_parents.length === 1 ? '' : 's'}
-                              </span>
-                            </div>
-                            {isOpen ? <ChevronDown size={16} color={theme.colors.textMuted} /> : <ChevronRight size={16} color={theme.colors.textMuted} />}
-                          </div>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '24px', maxWidth: '520px' }}>
 
-                          {isOpen && (
-                            <div style={{ borderTop: `1px solid ${theme.colors.border}`, padding: '10px 16px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                              {sortedParents.length === 0 ? (
-                                <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontStyle: 'italic' }}>No linked contacts.</div>
-                              ) : sortedParents.map(p => (
-                                <div
-                                  key={p.id}
-                                  onClick={() => openThreadWith(p.id)}
-                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: theme.colors.background, borderRadius: '8px', padding: '9px 12px', cursor: 'pointer' }}
-                                >
-                                  <div>
-                                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#333', fontFamily: theme.fonts.primary }}>{p.name}</span>
-                                    {p.role === 'creator' && (
-                                      <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: '700', color: theme.colors.primary, background: theme.colors.primaryLight, padding: '2px 7px', borderRadius: '6px' }}>PRIMARY</span>
-                                    )}
-                                  </div>
-                                  <span style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>{p.email}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                  {!composeType && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div
+                        onClick={() => setComposeType('direct')}
+                        style={{ background: 'white', border: `1px solid ${theme.colors.border}`, borderRadius: theme.borderRadius.lg, padding: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                      >
+                        <User size={20} color={theme.colors.primary} />
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>Direct message</div>
+                          <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Message the coordinator or a student's contact</div>
                         </div>
-                      )
-                    })}
+                      </div>
+                      <div
+                        onClick={() => setComposeType('announcement')}
+                        style={{ background: 'white', border: `1px solid ${theme.colors.border}`, borderRadius: theme.borderRadius.lg, padding: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                      >
+                        <Megaphone size={20} color={theme.colors.primary} />
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>Announcement</div>
+                          <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Broadcast to {club ? club.name : 'your class'}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {composeType === 'direct' && !composeWho && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div
+                        onClick={() => {
+                          setComposeWho('coordinator')
+                          if (coordinator) setComposeRecipient({ id: coordinator.id, name: coordinator.name })
+                        }}
+                        style={{ background: 'white', border: `1px solid ${theme.colors.border}`, borderRadius: theme.borderRadius.lg, padding: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                      >
+                        <User size={20} color={theme.colors.primary} />
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>The coordinator</div>
+                      </div>
+                      <div
+                        onClick={() => setComposeWho('student')}
+                        style={{ background: 'white', border: `1px solid ${theme.colors.border}`, borderRadius: theme.borderRadius.lg, padding: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                      >
+                        <Users size={20} color={theme.colors.primary} />
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>A student's contact</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {composeType === 'direct' && composeWho === 'student' && !composeSelectedStudent && (
+                    <div>
+                      <div style={{ position: 'relative', marginBottom: '12px' }}>
+                        <Search size={14} color={theme.colors.textMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                        <input value={composeSearch} onChange={e => setComposeSearch(e.target.value)} placeholder="Search students…" style={{ ...inputStyle, padding: '9px 12px 9px 34px' }} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {filteredStudents.map(s => (
+                          <div key={s.student_id} onClick={() => setComposeSelectedStudent(s)} style={{ background: 'white', borderRadius: '9px', border: `1px solid ${theme.colors.border}`, padding: '12px 14px', cursor: 'pointer' }}>
+                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>{s.first_name} {s.last_name}</div>
+                            <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>{s.linked_parents.length} contact{s.linked_parents.length === 1 ? '' : 's'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {composeType === 'direct' && composeWho === 'student' && composeSelectedStudent && !composeRecipient && (
+                    <div>
+                      <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginBottom: '10px' }}>
+                        Contacts for {composeSelectedStudent.first_name} {composeSelectedStudent.last_name}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {[...composeSelectedStudent.linked_parents].sort((a, b) => a.role === 'creator' ? -1 : 1).map(p => (
+                          <div key={p.id} onClick={() => setComposeRecipient({ id: p.id, name: p.name })} style={{ background: 'white', borderRadius: '9px', border: `1px solid ${theme.colors.border}`, padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                              <span style={{ fontSize: '13px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>{p.name}</span>
+                              {p.role === 'creator' && <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: '700', color: theme.colors.primary, background: theme.colors.primaryLight, padding: '2px 7px', borderRadius: '6px' }}>PRIMARY</span>}
+                            </div>
+                            <span style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>{p.email}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {composeType === 'direct' && composeRecipient && (
+                    <div>
+                      <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginBottom: '10px' }}>
+                        To: <strong style={{ color: '#333' }}>{composeRecipient.name}</strong>
+                      </div>
+                      <textarea
+                        value={composeBody}
+                        onChange={e => setComposeBody(e.target.value)}
+                        placeholder="Write your message…"
+                        style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }}
+                      />
+                      <button onClick={sendDirectFromCompose} style={{ marginTop: '10px', background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer' }}>
+                        Send
+                      </button>
+                    </div>
+                  )}
+
+                  {composeType === 'announcement' && (
+                    <div>
+                      <input value={annSubject} onChange={e => setAnnSubject(e.target.value)} placeholder="Subject" style={{ ...inputStyle, marginBottom: '10px' }} />
+                      <textarea value={annBody} onChange={e => setAnnBody(e.target.value)} placeholder="Write your announcement…" style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }} />
+                      <button onClick={sendAnnouncementFromCompose} style={{ marginTop: '10px', background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer' }}>
+                        Send announcement
+                      </button>
+                    </div>
+                  )}
                 </div>
+              </div>
+            ) : activeThreadId ? (
+              <>
+                <div style={{ padding: '14px 24px', borderBottom: `1px solid ${theme.colors.border}`, background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
+                      {threadData?.subject || (threads.find(t => t.thread_id === activeThreadId)?.participants[0]?.name) || 'Conversation'}
+                    </div>
+                    {threadData?.is_announcement && (
+                      <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '1px' }}>
+                        Sent by {threads.find(t => t.thread_id === activeThreadId)?.created_by_name}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <ThreadPanel
+                  threadData={threadData}
+                  me={me}
+                  draft={draft}
+                  setDraft={setDraft}
+                  sendMessage={sendMessage}
+                  canReply={!threadData?.is_announcement || threadData?.created_by === me?.id}
+                />
               </>
-            )
-          )}
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Select a conversation, or compose a new one.</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -279,6 +279,16 @@ def list_my_threads(
             Message.thread_id == thread_id
         ).order_by(Message.sent_at.desc()).first()
 
+        my_participant_row = db.query(ThreadParticipant).filter(
+            ThreadParticipant.thread_id == thread_id,
+            ThreadParticipant.user_id == current_user.id
+        ).first()
+
+        is_unread = False
+        if last_message and last_message.sender_id != current_user.id:
+            if not my_participant_row.last_read_at or last_message.sent_at > my_participant_row.last_read_at:
+                is_unread = True
+
         creator = db.query(User).filter(User.id == thread.created_by).first()
 
         result.append({
@@ -287,7 +297,9 @@ def list_my_threads(
             "subject": thread.subject,
             "created_by": thread.created_by,
             "created_by_role": creator.role.value if creator else None,
+            "created_by_name": f"{creator.first_name} {creator.last_name}" if creator else None,
             "participants": other_users,
+            "is_unread": is_unread,
             "last_message": {
                 "body": last_message.body,
                 "sender_id": last_message.sender_id,
@@ -344,6 +356,135 @@ def my_teachers(
 
     return result
 
+
+# ---------- Coordinator: list all teachers (for Teachers tab) ----------
+
+@router.get("/all-teachers")
+def all_teachers_for_messaging(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role.value != "coordinator":
+        raise HTTPException(status_code=403, detail="Only coordinators can access this")
+
+    teachers = db.query(User).filter(User.role == "teacher").all()
+    result = []
+    for t in teachers:
+        club = db.query(Club).filter(Club.teacher_id == t.id).first()
+        result.append({
+            "id": t.id,
+            "name": f"{t.first_name} {t.last_name}",
+            "club_name": club.name if club else None,
+        })
+    return result
+
+
+# ---------- Coordinator: list all students (for Students tab) ----------
+
+@router.get("/all-students")
+def all_students_for_messaging(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role.value != "coordinator":
+        raise HTTPException(status_code=403, detail="Only coordinators can access this")
+
+    students = db.query(Student).all()
+    result = []
+    for s in students:
+        links = db.query(ParentFamily).filter(ParentFamily.family_id == s.family_id).all()
+        contacts = []
+        for link in links:
+            parent_user = db.query(User).filter(User.id == link.parent_id).first()
+            if parent_user:
+                contacts.append({
+                    "id": parent_user.id,
+                    "name": f"{parent_user.first_name} {parent_user.last_name}",
+                    "email": parent_user.email,
+                    "role": link.role,
+                })
+        result.append({
+            "student_id": s.id,
+            "first_name": s.first_name,
+            "last_name": s.last_name,
+            "grade": s.grade,
+            "contacts": contacts,
+        })
+    result.sort(key=lambda s: (s["last_name"], s["first_name"]))
+    return result
+
+
+# ---------- Parent: check if a coordinator thread already exists (does not create one) ----------
+
+@router.get("/coordinator-thread")
+def get_existing_coordinator_thread(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns the existing 1:1 thread with the coordinator, if the coordinator
+    has already reached out. Does NOT create a new thread — parents cannot
+    initiate contact with the coordinator.
+    """
+    coordinator = db.query(User).filter(
+        User.role == "coordinator",
+        User.school_id == current_user.school_id
+    ).first()
+    if not coordinator:
+        return {"thread_id": None}
+
+    my_thread_ids = {
+        tp.thread_id for tp in
+        db.query(ThreadParticipant).filter(ThreadParticipant.user_id == current_user.id).all()
+    }
+    coord_thread_ids = {
+        tp.thread_id for tp in
+        db.query(ThreadParticipant).filter(ThreadParticipant.user_id == coordinator.id).all()
+    }
+    shared = my_thread_ids & coord_thread_ids
+
+    for thread_id in shared:
+        thread = db.query(MessageThread).filter(MessageThread.id == thread_id).first()
+        if thread and not thread.is_announcement:
+            participant_count = db.query(ThreadParticipant).filter(
+                ThreadParticipant.thread_id == thread_id
+            ).count()
+            if participant_count == 2:
+                return {"thread_id": thread.id}
+
+    return {"thread_id": None}
+
+
+# ---------- Unread thread count (for sidebar badge) ----------
+
+@router.get("/unread-count")
+def unread_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    my_thread_ids = [
+        tp.thread_id for tp in
+        db.query(ThreadParticipant).filter(ThreadParticipant.user_id == current_user.id).all()
+    ]
+
+    count = 0
+    for thread_id in my_thread_ids:
+        last_message = db.query(Message).filter(
+            Message.thread_id == thread_id
+        ).order_by(Message.sent_at.desc()).first()
+        if not last_message or last_message.sender_id == current_user.id:
+            continue
+
+        my_row = db.query(ThreadParticipant).filter(
+            ThreadParticipant.thread_id == thread_id,
+            ThreadParticipant.user_id == current_user.id
+        ).first()
+        if not my_row.last_read_at or last_message.sent_at > my_row.last_read_at:
+            count += 1
+
+    return {"unread_count": count}
+
+
 # ---------- Get messages in a thread ----------
 
 @router.get("/{thread_id}")
@@ -359,6 +500,9 @@ def get_thread_messages(
     ).first()
     if not is_participant:
         raise HTTPException(status_code=403, detail="You are not part of this thread")
+
+    is_participant.last_read_at = datetime.utcnow().isoformat() + "Z"
+    db.commit()
 
     thread = db.query(MessageThread).filter(MessageThread.id == thread_id).first()
     if not thread:
@@ -497,4 +641,5 @@ def get_or_create_thread_with(
 
     thread = _get_or_create_1on1_thread(db, current_user.id, recipient.id)
     return {"thread_id": thread.id}
+
 
