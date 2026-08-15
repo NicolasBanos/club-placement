@@ -238,6 +238,30 @@ def get_club_roster(
         "waitlist": waitlisted,
     }
 
+@router.get("/{club_id}/meeting-dates")
+def get_club_meeting_dates(
+    club_id: int,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns every scheduled meeting date for a club, newest first.
+    Teachers can only view their own assigned club; coordinators can view any.
+    """
+    club = db.query(Club).filter(Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if current_user.role.value == "teacher" and club.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You are not assigned to this club")
+
+    dates = db.query(MeetingDate).filter(MeetingDate.club_id == club_id).order_by(MeetingDate.date.desc()).all()
+
+    return [
+        {"id": m.id, "date": m.date, "start_time": m.start_time, "end_time": m.end_time}
+        for m in dates
+    ]
+
 @router.post("/")
 def create_club(
     club_data: ClubCreate,
