@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../../components/Sidebar'
-import { Trophy, Send, Users, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Trophy, Send, Users, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp, Search, List } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
 
@@ -15,6 +15,8 @@ function LotteryRunner() {
   const [lettersSent, setLettersSent] = useState(false)
   const [expandedFamilies, setExpandedFamilies] = useState({})
   const [error, setError] = useState('')
+  const [viewMode, setViewMode] = useState('results')  // 'results' | 'registrants'
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     const fetchData = async () => {
@@ -30,24 +32,39 @@ function LotteryRunner() {
                           resultsRes.data.total_waitlisted > 0
 
         if (hasResults) {
+          const resultFamilies = familiesRes.data
+            .map(family => {
+              const studentsWithResults = family.students
+                .map(s => {
+                  const assigned = resultsRes.data.assigned.find(a => a.id === s.id)
+                  const waitlisted = resultsRes.data.waitlisted.find(w => w.id === s.id)
+                  if (!assigned && !waitlisted) return null  // student not part of this lottery run
+                  return {
+                    ...s,
+                    assigned_club: assigned?.club_name || null,
+                    waitlisted_clubs: waitlisted?.waitlist_entries?.map(e => e.club_name) || [],
+                  }
+                })
+                .filter(Boolean)
+
+              if (studentsWithResults.length === 0) return null  // no students in this family had results
+              return {
+                family_id: family.id,
+                family_name: family.family_name,
+                students: studentsWithResults,
+              }
+            })
+            .filter(Boolean)
+
           setResults({
             total_assigned: resultsRes.data.total_assigned,
             total_waitlisted: resultsRes.data.total_waitlisted,
             family_order: [],
-            results: familiesRes.data.map(family => ({
-              family_id: family.id,
-              family_name: family.family_name,
-              students: family.students.map(s => {
-                const assigned = resultsRes.data.assigned.find(a => a.id === s.id)
-                const waitlisted = resultsRes.data.waitlisted.find(w => w.id === s.id)
-                return {
-                  ...s,
-                  assigned_club: assigned?.club_name || null,
-                  waitlisted_clubs: waitlisted?.waitlist_entries?.map(e => e.club_name) || [],
-                }
-              })
-            }))
+            results: resultFamilies,
           })
+          setViewMode('results')
+        } else {
+          setViewMode('registrants')
         }
       } catch (err) {
         console.error('Failed to fetch data:', err)
@@ -66,6 +83,7 @@ function LotteryRunner() {
       const res = await api.post('/lottery/run')
       setResults(res.data)
       setLettersSent(false)
+      setViewMode('results')
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to run lottery')
     } finally {
@@ -87,10 +105,24 @@ function LotteryRunner() {
   }
 
   const toggleFamily = (familyId) => {
-    setExpandedFamilies(prev => ({ ...prev, [familyId]: !prev[familyId] }))
+    const key = `${viewMode}-${familyId}`
+    setExpandedFamilies(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   const totalStudents = families.reduce((sum, f) => sum + f.students.length, 0)
+
+  // Which dataset to show, depending on view mode
+  const displayList = viewMode === 'results' && results ? results.results : families
+
+  // Apply search filter (matches family name or any student's first/last name)
+  const term = searchTerm.trim().toLowerCase()
+  const filteredList = term === '' ? displayList : displayList.filter(family => {
+    const familyName = (family.family_name || '').toLowerCase()
+    if (familyName.includes(term)) return true
+    return family.students.some(s =>
+      `${s.first_name} ${s.last_name}`.toLowerCase().includes(term)
+    )
+  })
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -170,10 +202,54 @@ function LotteryRunner() {
           </div>
         )}
 
-        <div style={{ flex: 1, padding: '24px 28px', display: 'flex', gap: '20px' }}>
+        {/* View mode toggle + search */}
+        <div style={{ margin: '16px 28px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setViewMode('registrants')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                background: viewMode === 'registrants' ? theme.colors.primary : 'white',
+                color: viewMode === 'registrants' ? 'white' : theme.colors.textSecondary,
+                border: `1px solid ${viewMode === 'registrants' ? theme.colors.primary : theme.colors.border}`,
+                borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: '600',
+                fontFamily: theme.fonts.primary, cursor: 'pointer',
+              }}
+            >
+              <List size={13} /> Current Registrants
+            </button>
+            {results && (
+              <button
+                onClick={() => setViewMode('results')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: viewMode === 'results' ? theme.colors.primary : 'white',
+                  color: viewMode === 'results' ? 'white' : theme.colors.textSecondary,
+                  border: `1px solid ${viewMode === 'results' ? theme.colors.primary : theme.colors.border}`,
+                  borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: '600',
+                  fontFamily: theme.fonts.primary, cursor: 'pointer',
+                }}
+              >
+                <Trophy size={13} /> Lottery Results
+              </button>
+            )}
+          </div>
 
-          {/* Results panel */}
-          {results && (
+          <div style={{ position: 'relative', minWidth: '240px' }}>
+            <Search size={14} color={theme.colors.textMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Search family or student"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px 8px 34px', fontSize: '13px', fontFamily: theme.fonts.primary, border: `1px solid ${theme.colors.border}`, borderRadius: '8px' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ flex: 1, padding: '16px 28px 24px', display: 'flex', gap: '20px' }}>
+
+          {/* Results panel — only show alongside the results view */}
+          {results && viewMode === 'results' && (
             <div style={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}` }}>
                 <div style={{ fontSize: '14px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, marginBottom: '16px' }}>
@@ -236,11 +312,16 @@ function LotteryRunner() {
                 <div style={{ fontSize: '15px', fontWeight: '600', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>No families yet</div>
                 <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Families will appear here once parents register and submit their club choices</div>
               </div>
+            ) : filteredList.length === 0 ? (
+              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '30px', textAlign: 'center', border: `1px solid ${theme.colors.border}` }}>
+                <div style={{ fontSize: '13px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>No families or students match "{searchTerm}"</div>
+              </div>
             ) : (
-              (results ? results.results : families).map(family => {
-                const isExpanded = expandedFamilies[family.family_id || family.id]
+              filteredList.map(family => {
+                const isExpanded = expandedFamilies[`${viewMode}-${family.family_id || family.id}`]
                 const familyId = family.family_id || family.id
                 const students = family.students
+                const showResults = viewMode === 'results' && results
 
                 return (
                   <div key={familyId} style={{
@@ -272,7 +353,7 @@ function LotteryRunner() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {results && (
+                        {showResults && (
                           <div style={{ display: 'flex', gap: '6px' }}>
                             {students.every(s => s.assigned_club) && (
                               <span style={{ background: theme.colors.primaryLight, color: theme.colors.primary, fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px', fontFamily: theme.fonts.primary }}>All Assigned</span>
@@ -304,13 +385,13 @@ function LotteryRunner() {
                                   Grade {student.grade === 0 ? 'K' : student.grade}
                                 </span>
                               </div>
-                              {!results && (
+                              {!showResults && (
                                 <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '3px' }}>
-                                  {[student.choice1, student.choice2, student.choice3].filter(Boolean).join(' → ')}
+                                  {[student.choice1, student.choice2, student.choice3].filter(Boolean).join(' → ') || 'No choices submitted'}
                                 </div>
                               )}
                             </div>
-                            {results && (
+                            {showResults && (
                               <div>
                                 {student.assigned_club ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
