@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database.connection import get_db
-from core.auth import require_coordinator
+from core.auth import require_coordinator, get_current_user
 from models.user import User
 from models.club import Club
 from models.assignment import Assignment
 from models.waitlist import Waitlist
 from models.meeting_date import MeetingDate
 from models.student import Student
+from models.school import School
+from pydantic import BaseModel
+
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -120,3 +123,40 @@ def get_next_meeting(
         "date": next_meeting.date,
         "meetings": meetings
     }
+
+class LockUpdate(BaseModel):
+    locked: bool
+
+
+@router.get("/lock-status")
+def get_lock_status(
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """Returns whether registration (new children + club choices) is currently locked."""
+    school = db.query(School).filter(School.id == current_user.school_id).first()
+    return {"registration_locked": school.registration_locked if school else False}
+
+
+@router.put("/lock-status")
+def set_lock_status(
+    update: LockUpdate,
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """Locks or unlocks registration for the coordinator's school."""
+    school = db.query(School).filter(School.id == current_user.school_id).first()
+    if not school:
+        raise HTTPException(status_code=404, detail="School not found")
+    school.registration_locked = update.locked
+    db.commit()
+    return {"message": f"Registration {'locked' if update.locked else 'unlocked'}.", "registration_locked": school.registration_locked}
+
+@router.get("/lock-status/public")
+def get_lock_status_public(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Any logged-in user can check whether registration is locked."""
+    school = db.query(School).filter(School.id == current_user.school_id).first()
+    return {"registration_locked": school.registration_locked if school else False}

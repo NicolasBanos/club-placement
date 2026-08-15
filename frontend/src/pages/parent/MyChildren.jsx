@@ -19,6 +19,7 @@ function MyChildren() {
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState('success')
+  const [locked, setLocked] = useState(false)
 
   // editing state
   const [editingChoices, setEditingChoices] = useState(null)   // student id
@@ -31,8 +32,8 @@ function MyChildren() {
   const [pickupDraft, setPickupDraft] = useState({ name: '', phone: '', relationship_to_student: '' })
 
   const load = () => {
-    Promise.all([api.get('/families/mine'), api.get('/clubs/public')])
-      .then(([f, c]) => { setFamilies(f.data); setClubs(c.data) })
+    Promise.all([api.get('/families/mine'), api.get('/clubs/public'), api.get('/dashboard/lock-status/public')])
+      .then(([f, c, l]) => { setFamilies(f.data); setClubs(c.data); setLocked(l.data.registration_locked) })
       .catch(err => console.error(err))
       .finally(() => setLoading(false))
   }
@@ -143,6 +144,12 @@ function MyChildren() {
           <div style={{ margin: '16px 28px 0', background: msgType === 'error' ? theme.colors.dangerLight : theme.colors.primaryLight, border: `1px solid ${msgType === 'error' ? theme.colors.danger : theme.colors.border}`, borderRadius: '9px', padding: '12px 16px', color: msgType === 'error' ? theme.colors.danger : theme.colors.primary, fontSize: '13px', fontFamily: theme.fonts.primary, fontWeight: '600' }}>{msg}</div>
         )}
 
+        {locked && (
+          <div style={{ margin: '16px 28px 0', background: theme.colors.background, border: `1px solid ${theme.colors.border}`, borderRadius: '9px', padding: '10px 16px', color: theme.colors.textSecondary, fontSize: '12px', fontFamily: theme.fonts.primary, fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={14} color={theme.colors.textMuted} /> The window for registration edits has passed. Contact your child's teacher if you need to make a change.
+          </div>
+        )}
+
         <div style={{ flex: 1, padding: '24px 28px' }}>
           {loading ? (
             <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontSize: '13px' }}>Loading…</div>
@@ -242,7 +249,7 @@ function MyChildren() {
                                 <div style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary }}>
                                   {[s.choice1, s.choice2, s.choice3].filter(Boolean).join(' · ') || <span style={{ fontStyle: 'italic', color: theme.colors.textMuted }}>None selected</span>}
                                 </div>
-                                {isCreator && <button onClick={() => startChoices(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', color: theme.colors.primary, fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary }}><Edit2 size={12} /> Edit</button>}
+                                {isCreator && !locked && <button onClick={() => startChoices(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', color: theme.colors.primary, fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary }}><Edit2 size={12} /> Edit</button>}
                               </div>
                             )}
                           </div>
@@ -275,11 +282,11 @@ function MyChildren() {
                         <button onClick={() => setAddingChildTo(null)} style={{ background: 'white', color: theme.colors.textMuted, border: `1px solid ${theme.colors.border}`, borderRadius: '7px', padding: '8px 16px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer' }}>Cancel</button>
                       </div>
                     </div>
-                  ) : (
+                  ) : !locked ? (
                     <button onClick={() => setAddingChildTo(family.family_id)} style={{ marginTop: '12px', background: theme.colors.primaryLight, color: theme.colors.primary, border: 'none', borderRadius: '8px', padding: '10px 16px', fontSize: '13px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <UserPlus size={15} /> Add a child
                     </button>
-                  )
+                  ) : null
                 )}
 
                 {/* authorized pickups */}
