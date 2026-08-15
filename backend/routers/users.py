@@ -146,3 +146,25 @@ def get_me(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "role": current_user.role.value,
     }
+
+class AccountUpdate(BaseModel):
+    email: Optional[str] = None
+
+
+@router.put("/me")
+def update_my_account(
+    update: AccountUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update the logged-in user's own email."""
+    if update.email and update.email != current_user.email:
+        existing = db.query(User).filter(User.email == update.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        current_user.email = update.email
+        db.commit()
+
+    return {"message": "Account updated successfully."}
+
+
