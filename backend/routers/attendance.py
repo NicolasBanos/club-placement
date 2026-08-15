@@ -203,6 +203,75 @@ def my_attendance_today(
     }
 
 
+# ---------- Teacher: attendance for a specific meeting date (view or edit) ----------
+
+@router.get("/for-date")
+def attendance_for_date(
+    meeting_date_id: int,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns the roster + each student's current attendance status for a given
+    meeting date. Only editable if that date is today.
+    """
+    from datetime import date
+    today = date.today().isoformat()
+
+    meeting = db.query(MeetingDate).filter(MeetingDate.id == meeting_date_id).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting date not found")
+
+    club = db.query(Club).filter(Club.id == meeting.club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if current_user.role.value == "teacher" and club.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You are not assigned to this club")
+
+    assignments = db.query(Assignment).filter(Assignment.club_id == club.id).all()
+
+    students_out = []
+    for a in assignments:
+        student = db.query(Student).filter(Student.id == a.student_id).first()
+        if not student:
+            continue
+
+        record = db.query(Attendance).filter(
+            Attendance.student_id == student.id,
+            Attendance.meeting_date_id == meeting.id
+        ).first()
+
+        if record is None:
+            display_status = "unmarked"
+        elif record.status == "present":
+            display_status = "present"
+        elif record.status == "absent" and record.excuse_status == "approved":
+            display_status = "excused"
+        else:
+            display_status = "absent"
+
+        students_out.append({
+            "student_id": student.id,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "grade": student.grade,
+            "status": display_status,
+            "late_pickup": record.late_pickup if record else False,
+        })
+
+    students_out.sort(key=lambda s: (s["last_name"], s["first_name"]))
+
+    return {
+        "club_id": club.id,
+        "club_name": club.name,
+        "meeting_date_id": meeting.id,
+        "date": meeting.date,
+        "is_editable": meeting.date == today,
+        "students": students_out,
+    }
+
+
 # ---------- Coordinator: list pending excuses ----------
 
 @router.get("/excuses/pending")
