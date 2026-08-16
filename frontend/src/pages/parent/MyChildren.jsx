@@ -13,6 +13,7 @@ function formatDate(iso) {
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+
 function MyChildren() {
   const [families, setFamilies] = useState([])
   const [clubs, setClubs] = useState([])
@@ -20,6 +21,7 @@ function MyChildren() {
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState('success')
   const [locked, setLocked] = useState(false)
+  const [homeroomTeachers, setHomeroomTeachers] = useState([])
 
   // editing state
   const [editingChoices, setEditingChoices] = useState(null)   // student id
@@ -32,8 +34,8 @@ function MyChildren() {
   const [pickupDraft, setPickupDraft] = useState({ name: '', phone: '', relationship_to_student: '' })
 
   const load = () => {
-    Promise.all([api.get('/families/mine'), api.get('/clubs/public'), api.get('/dashboard/lock-status/public')])
-      .then(([f, c, l]) => { setFamilies(f.data); setClubs(c.data); setLocked(l.data.registration_locked) })
+    Promise.all([api.get('/families/mine'), api.get('/clubs/public'), api.get('/homeroom-teachers/')])
+      .then(([f, c, t]) => { setFamilies(f.data); setClubs(c.data); setHomeroomTeachers(t.data) })
       .catch(err => console.error(err))
       .finally(() => setLoading(false))
   }
@@ -41,6 +43,11 @@ function MyChildren() {
 
   const flash = (text, type = 'success') => {
     setMsg(text); setMsgType(type); setTimeout(() => setMsg(''), 3500)
+  }
+
+  const teachersForGrade = (grade) => {
+    if (grade === '') return []
+    return homeroomTeachers.filter(t => t.grade === Number(grade))
   }
 
   // clubs a student is grade-eligible for, excluding other picks
@@ -182,19 +189,7 @@ function MyChildren() {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: '16px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary }}>{s.first_name} {s.last_name}</div>
                           <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            Grade {GRADE_LABELS[s.grade]} ·
-                            {editingTeacher === s.id ? (
-                              <span style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
-                                <input value={teacherDraft} onChange={e => setTeacherDraft(e.target.value)} style={{ ...inp, marginTop: 0, width: '140px', padding: '4px 8px' }} />
-                                <button onClick={() => saveTeacher(s)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><Check size={14} color={theme.colors.primary} /></button>
-                                <button onClick={() => setEditingTeacher(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={14} color={theme.colors.textMuted} /></button>
-                              </span>
-                            ) : (
-                              <span style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
-                                {s.teacher}
-                                {isCreator && <button onClick={() => startTeacher(s)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><Edit2 size={11} color={theme.colors.textMuted} /></button>}
-                              </span>
-                            )}
+                            Grade {GRADE_LABELS[s.grade]} · {s.teacher}
                           </div>
                         </div>
                       </div>
@@ -270,12 +265,20 @@ function MyChildren() {
                       </div>
                       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                         <div style={{ flex: 1 }}><label style={lbl}>Grade</label>
-                          <select style={inp} value={childDraft.grade} onChange={e => setChildDraft({ ...childDraft, grade: e.target.value })}>
+                          <select style={inp} value={childDraft.grade} onChange={e => setChildDraft({ ...childDraft, grade: e.target.value, teacher: '' })}>
                             <option value="">Select…</option>
                             {GRADES.map(g => <option key={g} value={g}>{GRADE_LABELS[g]}</option>)}
                           </select>
                         </div>
-                        <div style={{ flex: 1 }}><label style={lbl}>Teacher</label><input style={inp} value={childDraft.teacher} onChange={e => setChildDraft({ ...childDraft, teacher: e.target.value })} /></div>
+                        <div style={{ flex: 1 }}>
+                          <label style={lbl}>Teacher</label>
+                          <select style={inp} value={childDraft.teacher} onChange={e => setChildDraft({ ...childDraft, teacher: e.target.value })} disabled={childDraft.grade === ''}>
+                            <option value="">{childDraft.grade === '' ? 'Select grade first' : 'Select…'}</option>
+                            {teachersForGrade(childDraft.grade).map(t => (
+                              <option key={t.id} value={t.name}>{t.name}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                         <button onClick={() => saveChild(family.family_id)} style={{ background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '7px', padding: '8px 16px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer' }}>Add child</button>
