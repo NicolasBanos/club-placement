@@ -21,6 +21,7 @@ from routers import attendance
 from models.attendance import Attendance
 from routers import families
 from routers import messages
+from routers import homeroom_teachers
 
 app = FastAPI(title="ClubsForKids API")
 
@@ -43,6 +44,8 @@ app.include_router(roster.router)
 app.include_router(attendance.router)
 app.include_router(families.router)
 app.include_router(messages.router)
+app.include_router(homeroom_teachers.router)
+
 
 @app.get("/")
 def read_root():

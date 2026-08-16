@@ -382,3 +382,56 @@ def validate_rows(rows: list, db=None) -> dict:
         "valid_rows": len(rows) - len(invalid_row_indices),
         "invalid_rows": len(invalid_row_indices),
     }
+
+def import_homeroom_teachers(df, db, school_id: int) -> dict:
+    """
+    Import homeroom teachers from a spreadsheet with 'name' and 'grade' columns.
+    Skips rows with missing/invalid data or exact duplicates (name + grade, case-insensitive).
+    """
+    from models.homeroom_teacher import HomeroomTeacher
+
+    added = []
+    skipped = []
+
+    required = ["name", "grade"]
+    missing_columns = [col for col in required if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns: {missing_columns}")
+
+    for index, row in df.iterrows():
+        row_num = index + 2
+        name = str(row.get("name", "")).strip()
+        grade_val = row.get("grade")
+
+        if not name or pd.isna(grade_val):
+            skipped.append({"row": row_num, "name": name, "reason": "missing name or grade"})
+            continue
+
+        try:
+            grade = int(grade_val)
+            if grade < 0 or grade > 5:
+                skipped.append({"row": row_num, "name": name, "reason": f"grade must be 0-5, got {grade}"})
+                continue
+        except (ValueError, TypeError):
+            skipped.append({"row": row_num, "name": name, "reason": f"grade must be a number, got '{grade_val}'"})
+            continue
+
+        existing = db.query(HomeroomTeacher).filter(
+            HomeroomTeacher.name.ilike(name),
+            HomeroomTeacher.grade == grade,
+            HomeroomTeacher.school_id == school_id,
+        ).first()
+        if existing:
+            skipped.append({"row": row_num, "name": name, "reason": "already exists"})
+            continue
+
+        db.add(HomeroomTeacher(name=name, grade=grade, school_id=school_id))
+        added.append({"row": row_num, "name": name, "grade": grade})
+
+    db.commit()
+
+    return {
+        "added": added,
+        "skipped": skipped,
+        "counts": {"added": len(added), "skipped": len(skipped)},
+    }

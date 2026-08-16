@@ -19,6 +19,7 @@ function Register() {
   const navigate = useNavigate()
   const [path, setPath] = useState(null)   // null | 'create' | 'join'
   const [clubs, setClubs] = useState([])
+  const [homeroomTeachers, setHomeroomTeachers] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [joinCodeModal, setJoinCodeModal] = useState(null)
@@ -37,6 +38,7 @@ function Register() {
 
   useEffect(() => {
     api.get('/clubs/public').then(res => setClubs(res.data)).catch(() => {})
+    api.get('/homeroom-teachers/public').then(res => setHomeroomTeachers(res.data)).catch(() => {})
   }, [])
 
   const setAccountField = (k, v) => setAccount(prev => ({ ...prev, [k]: v }))
@@ -45,7 +47,7 @@ function Register() {
     setStudents(prev => {
       const next = [...prev]
       next[i] = { ...next[i], [k]: v }
-      // If grade changed, clear choices that are no longer grade-eligible
+      // If grade changed, clear choices and teacher that are no longer valid
       if (k === 'grade') {
         const g = v === '' ? null : Number(v)
         for (const c of ['choice1', 'choice2', 'choice3']) {
@@ -56,6 +58,7 @@ function Register() {
             }
           }
         }
+        next[i].teacher = ''
       }
       return next
     })
@@ -82,6 +85,11 @@ function Register() {
       if (otherPicks.includes(String(c.id))) return false
       return true
     })
+  }
+
+  const teachersForGrade = (grade) => {
+    if (grade === '') return []
+    return homeroomTeachers.filter(t => t.grade === Number(grade))
   }
 
   const validateCreate = () => {
@@ -328,7 +336,12 @@ function Register() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <label style={labelStyle}>Teacher</label>
-                    <input style={inputStyle} value={s.teacher} onChange={e => setStudentField(i, 'teacher', e.target.value)} />
+                    <select style={inputStyle} value={s.teacher} onChange={e => setStudentField(i, 'teacher', e.target.value)} disabled={s.grade === ''}>
+                      <option value="">{s.grade === '' ? 'Select grade first' : 'Select…'}</option>
+                      {teachersForGrade(s.grade).map(t => (
+                        <option key={t.id} value={t.name}>{t.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

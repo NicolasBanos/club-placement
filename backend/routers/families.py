@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from database.connection import get_db
-from core.auth import hash_password, create_access_token, get_current_user, require_parent
+from core.auth import hash_password, create_access_token, get_current_user, require_parent, require_coordinator
 from models.user import User, UserRole
 from models.family import Family
 from models.student import Student
@@ -360,14 +360,13 @@ def add_student(
 def edit_teacher(
     student_id: int,
     data: EditTeacher,
-    current_user: User = Depends(require_parent),
+    current_user: User = Depends(require_coordinator),
     db: Session = Depends(get_db)
 ):
-    """Edit a child's teacher (creator only). Name and grade are not editable."""
+    """Edit a child's teacher (coordinator only, for corrections)."""
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-    _require_creator(db, current_user.id, student.family_id)
     student.teacher = data.teacher.strip()
     db.commit()
     return {"message": "Teacher updated."}
