@@ -30,12 +30,22 @@ function TeacherDashboard() {
   const [clubs, setClubs] = useState([])
   const [loading, setLoading] = useState(true)
   const firstName = localStorage.getItem('first_name')
+  const [attendanceSubmittedToday, setAttendanceSubmittedToday] = useState(false)
 
   useEffect(() => {
     api.get('/clubs/mine')
       .then(res => setClubs(res.data))
       .catch(err => console.error(err))
       .finally(() => setLoading(false))
+
+    api.get('/attendance/mine-today')
+      .then(res => {
+        if (res.data.meeting_today) {
+          const anySubmitted = res.data.students.some(s => s.status !== 'unmarked')
+          setAttendanceSubmittedToday(anySubmitted)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const quickLinks = [
@@ -136,12 +146,18 @@ function TeacherDashboard() {
                             </span>
                           </div>
                           {meetingToday && (
-                            <button
-                              onClick={() => navigate('/teacher/attendance')}
-                              style={{ background: theme.colors.warning, color: 'white', border: 'none', borderRadius: '7px', padding: '7px 14px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer' }}
-                            >
-                              Submit attendance
-                            </button>
+                            attendanceSubmittedToday ? (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
+                                <CalendarCheck size={13} /> Attendance submitted
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => navigate('/teacher/attendance')}
+                                style={{ background: theme.colors.warning, color: 'white', border: 'none', borderRadius: '7px', padding: '7px 14px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer' }}
+                              >
+                                Submit attendance
+                              </button>
+                            )
                           )}
                         </div>
                       ) : (

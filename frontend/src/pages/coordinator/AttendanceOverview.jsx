@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Sidebar from '../../components/Sidebar'
-import { CalendarCheck, AlertTriangle, ClipboardList } from 'lucide-react'
+import { CalendarCheck, AlertTriangle, ClipboardList, BarChart2 } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
 
@@ -20,6 +21,7 @@ function formatDate(iso) {
 }
 
 function AttendanceOverview() {
+    const navigate = useNavigate()
     const [dates, setDates] = useState([])
     const [selectedDate, setSelectedDate] = useState('')
     const [clubs, setClubs] = useState([])
@@ -123,7 +125,7 @@ function AttendanceOverview() {
                             View and adjust attendance across all clubs
                         </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <CalendarCheck size={16} color={theme.colors.primary} />
                         <select
                             value={selectedDate}
@@ -143,6 +145,11 @@ function AttendanceOverview() {
                                 <option key={d} value={d}>{formatDate(d)}</option>
                             ))}
                         </select>
+                        <button
+                            onClick={() => navigate('/coordinator/attendance/summary')}
+                            style={{ background: 'white', color: theme.colors.primary, border: `1.5px solid ${theme.colors.primary}`, borderRadius: '8px', padding: '9px 14px', fontSize: '13px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <BarChart2 size={14} /> View Summary
+                        </button>
                     </div>
                 </div>
 

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from typing import Optional
 from datetime import datetime, date
 from database.connection import get_db
 from core.auth import require_coordinator, require_teacher, require_parent
@@ -703,3 +704,62 @@ def submit_excuse(
     db.commit()
 
     return {"message": "Excuse submitted and sent to the coordinator for review."}
+
+
+@router.get("/summary")
+def attendance_summary(
+    club_id: Optional[int] = None,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db)
+):
+    """
+    Per-student attendance summary: total unexcused absences, excused absences,
+    and late pickups. Teachers see only their own club; coordinators can see
+    any club or all clubs (via optional club_id filter).
+    Sorted by unexcused absences descending (highest risk first).
+    """
+    if current_user.role.value == "teacher":
+        club = db.query(Club).filter(Club.teacher_id == current_user.id).first()
+        if not club:
+            return []
+        club_ids = [club.id]
+    else:
+        if club_id:
+            club_ids = [club_id]
+        else:
+            club_ids = [c.id for c in db.query(Club).all()]
+
+    assignments = db.query(Assignment).filter(Assignment.club_id.in_(club_ids)).all()
+
+    result = []
+    for a in assignments:
+        student = db.query(Student).filter(Student.id == a.student_id).first()
+        if not student:
+            continue
+        club = db.query(Club).filter(Club.id == a.club_id).first()
+
+        records = db.query(Attendance).join(
+            MeetingDate, Attendance.meeting_date_id == MeetingDate.id
+        ).filter(
+            Attendance.student_id == student.id,
+            MeetingDate.club_id == a.club_id
+        ).all()
+
+        unexcused = sum(1 for r in records if r.status == "absent" and r.excuse_status != "approved")
+        excused = sum(1 for r in records if r.status == "absent" and r.excuse_status == "approved")
+        late_pickups = sum(1 for r in records if r.late_pickup)
+
+        result.append({
+            "student_id": student.id,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "grade": student.grade,
+            "club_id": club.id if club else None,
+            "club_name": club.name if club else "",
+            "unexcused_absences": unexcused,
+            "excused_absences": excused,
+            "late_pickups": late_pickups,
+        })
+
+    result.sort(key=lambda s: (-s["unexcused_absences"], s["last_name"], s["first_name"]))
+    return result

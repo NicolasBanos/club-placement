@@ -11,6 +11,7 @@ from models.waitlist import Waitlist
 from datetime import date
 from models.parent_family import ParentFamily
 from models.authorized_pickup import AuthorizedPickup
+from models.parent_family import ParentFamily
 
 
 router = APIRouter(prefix="/roster", tags=["Roster"])
@@ -40,6 +41,7 @@ def get_rosters(
             if family:
                 for p in db.query(AuthorizedPickup).filter(AuthorizedPickup.family_id == family.id).all():
                     pickups.append({
+                        "id": p.id,
                         "name": p.name,
                         "phone": p.phone,
                         "relationship_to_student": p.relationship_to_student,
@@ -421,3 +423,45 @@ def manually_assign_student(
     return {
         "message": f"{student.first_name} {student.last_name} assigned to {club.name}!"
     }
+
+
+@router.delete("/students/{student_id}/parent/{parent_user_id}")
+def unlink_parent_from_student(
+    student_id: int,
+    parent_user_id: int,
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """
+    Coordinator removes a parent's access to a specific student's family
+    (e.g. restraining order, custody change). Unlinks the ParentFamily
+    connection — does not delete the parent's login account itself.
+    """
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    link = db.query(ParentFamily).filter(
+        ParentFamily.parent_id == parent_user_id,
+        ParentFamily.family_id == student.family_id
+    ).first()
+    if not link:
+        raise HTTPException(status_code=404, detail="This parent is not linked to this student's family")
+
+    db.delete(link)
+    db.commit()
+    return {"message": "Parent access removed from this family."}
+
+@router.delete("/pickups/{pickup_id}")
+def remove_pickup_as_coordinator(
+    pickup_id: int,
+    current_user: User = Depends(require_coordinator),
+    db: Session = Depends(get_db)
+):
+    """Coordinator removes an authorized pickup person from any family."""
+    pickup = db.query(AuthorizedPickup).filter(AuthorizedPickup.id == pickup_id).first()
+    if not pickup:
+        raise HTTPException(status_code=404, detail="Pickup not found")
+    db.delete(pickup)
+    db.commit()
+    return {"message": "Pickup removed."}
