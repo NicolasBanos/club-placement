@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../../components/Sidebar'
-import { Users, Clock, Check, X, AlertCircle, ClipboardList, ArrowUp, ArrowDown, ChevronUp, ChevronDown, ChevronRight, Phone, UserCheck } from 'lucide-react'
+import { Users, Clock, Check, X, AlertCircle, ClipboardList, ArrowUp, ArrowDown, ChevronUp, ChevronDown, ChevronRight, Phone, UserCheck, Trash2 } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
 
@@ -117,6 +117,28 @@ function RosterManagement() {
       showMessage('Failed to reorder waitlist', 'error')
     } finally {
       setActionLoading(false)
+    }
+  }
+
+  const handleRemovePickup = async (pickupId, name) => {
+    if (!window.confirm(`Remove ${name} as an authorized pickup?`)) return
+    try {
+      await api.delete(`/roster/pickups/${pickupId}`)
+      showMessage(`${name} removed from authorized pickups.`)
+      fetchRosters()
+    } catch (err) {
+      showMessage(err.response?.data?.detail || 'Failed to remove pickup', 'error')
+    }
+  }
+
+  const handleUnlinkParent = async (studentId, parentUserId, name) => {
+    if (!window.confirm(`Remove ${name}'s access to this family? This does not delete their account, only their connection to this family.`)) return
+    try {
+      await api.delete(`/roster/students/${studentId}/parent/${parentUserId}`)
+      showMessage(`${name}'s access to this family has been removed.`)
+      fetchRosters()
+    } catch (err) {
+      showMessage(err.response?.data?.detail || 'Failed to remove access', 'error')
     }
   }
 
@@ -342,12 +364,17 @@ function RosterManagement() {
                                 {(!student.pickups || student.pickups.length === 0) ? (
                                   <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontStyle: 'italic' }}>No authorized pickups on file.</div>
                                 ) : (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    {student.pickups.map((p, i) => (
-                                      <div key={i} style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <strong>{p.name}</strong>
-                                        {p.relationship_to_student && <span style={{ color: theme.colors.textMuted }}>· {p.relationship_to_student}</span>}
-                                        {p.phone && <span style={{ color: theme.colors.textMuted, display: 'flex', alignItems: 'center', gap: '3px' }}><Phone size={10} /> {p.phone}</span>}
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    {student.pickups.map((p) => (
+                                      <div key={p.id} style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', borderRadius: '6px', padding: '6px 10px', border: `1px solid ${theme.colors.border}` }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                          <strong>{p.name}</strong>
+                                          {p.relationship_to_student && <span style={{ color: theme.colors.textMuted }}>{p.relationship_to_student}</span>}
+                                          {p.phone && <span style={{ color: theme.colors.textMuted, display: 'flex', alignItems: 'center', gap: '3px' }}><Phone size={10} /> {p.phone}</span>}
+                                        </div>
+                                        <button onClick={() => handleRemovePickup(p.id, p.name)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexShrink: 0 }}>
+                                          <Trash2 size={13} color={theme.colors.danger} />
+                                        </button>
                                       </div>
                                     ))}
                                   </div>
@@ -374,12 +401,17 @@ function RosterManagement() {
                                     <div style={{ fontSize: '10px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase', letterSpacing: '0.03em', margin: '12px 0 6px' }}>
                                       Linked parent accounts
                                     </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                      {sortedParents.map((p, i) => (
-                                        <div key={i} style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                          <strong>{p.name}</strong>
-                                          <span style={{ color: theme.colors.textMuted, textTransform: 'capitalize' }}>{p.role}</span>
-                                          <span style={{ color: theme.colors.textMuted }}>{p.email}</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                      {sortedParents.map((p) => (
+                                        <div key={p.id} style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', borderRadius: '6px', padding: '6px 10px', border: `1px solid ${theme.colors.border}` }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                            <strong>{p.name}</strong>
+                                            <span style={{ color: theme.colors.textMuted, textTransform: 'capitalize' }}>{p.role}</span>
+                                            <span style={{ color: theme.colors.textMuted }}>{p.email}</span>
+                                          </div>
+                                          <button onClick={() => handleUnlinkParent(student.student_id, p.id, p.name)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexShrink: 0 }}>
+                                            <Trash2 size={13} color={theme.colors.danger} />
+                                          </button>
                                         </div>
                                       ))}
                                     </div>

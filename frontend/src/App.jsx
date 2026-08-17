@@ -22,6 +22,7 @@ import TeacherMessages from './pages/teacher/TeacherMessages'
 import ParentMessages from './pages/parent/ParentMessages'
 import CoordinatorMessages from './pages/coordinator/CoordinatorMessages'
 import AccountSettings from './pages/AccountSettings'
+import AttendanceSummary from './pages/AttendanceSummary'
 
 function App() {
   return (
@@ -230,6 +231,23 @@ function App() {
           } 
         />
 
+        <Route 
+          path="/coordinator/attendance/summary" 
+          element={
+            <ProtectedRoute allowedRoles={['coordinator']}>
+              <AttendanceSummary />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/teacher/attendance/summary" 
+          element={
+            <ProtectedRoute allowedRoles={['teacher', 'coordinator']}>
+              <AttendanceSummary />
+            </ProtectedRoute>
+          } 
+        />
+
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
@@ -238,3 +256,5 @@ function App() {
 }
 
 export default App
+
+

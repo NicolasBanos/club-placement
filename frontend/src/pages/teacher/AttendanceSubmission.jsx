@@ -3,6 +3,7 @@ import Sidebar from '../../components/Sidebar'
 import { CalendarCheck, AlertCircle, Check, X, FileCheck, Clock, Calendar } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
+import { useNavigate } from 'react-router-dom'
 
 const GRADE_LABELS = { 0: 'K', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5' }
 
@@ -32,6 +33,7 @@ const STATUS_DISPLAY = {
 }
 
 function AttendanceSubmission() {
+  const navigate = useNavigate()
   const [club, setClub] = useState(null)
   const [meetingDates, setMeetingDates] = useState([])
   const [selectedMeetingId, setSelectedMeetingId] = useState(null)
@@ -131,6 +133,7 @@ function AttendanceSubmission() {
   }
 
   const allMarked = data && data.students.length > 0 && data.students.every(s => marks[s.student_id]?.status)
+  const alreadySubmitted = data && data.students.some(s => s.status !== 'unmarked')
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -180,6 +183,12 @@ function AttendanceSubmission() {
                     </option>
                   ))}
                 </select>
+                <button
+                  onClick={() => navigate('/teacher/attendance/summary')}
+                  style={{ background: 'white', color: theme.colors.primary, border: `1px solid ${theme.colors.primary}`, borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer' }}
+                >
+                  View Summary
+                </button>
               </div>
 
               {loadingDate ? (
@@ -253,22 +262,22 @@ function AttendanceSubmission() {
                   </div>
 
                   <button
-                    onClick={submit}
-                    disabled={!allMarked || saving}
-                    style={{
-                      background: allMarked ? theme.colors.primary : theme.colors.border,
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '9px',
-                      padding: '12px 24px',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      fontFamily: theme.fonts.primary,
-                      cursor: allMarked ? 'pointer' : 'not-allowed',
-                    }}
-                  >
-                    {saving ? 'Submitting…' : 'Submit attendance'}
-                  </button>
+                onClick={submit}
+                disabled={!allMarked || saving}
+                style={{
+                  background: allMarked ? theme.colors.primary : theme.colors.border,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '9px',
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  fontFamily: theme.fonts.primary,
+                  cursor: allMarked ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {saving ? 'Submitting…' : alreadySubmitted ? 'Resubmit attendance' : 'Submit attendance'}
+              </button>
                 </>
               ) : data ? (
                 /* ---- READ-ONLY VIEW (past or future date) ---- */
