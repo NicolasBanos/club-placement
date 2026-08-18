@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import api from '../api/axios'
@@ -14,6 +14,14 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -52,7 +60,8 @@ function Login() {
   return (
     <div style={styles.container}>
 
-      {/* Left panel — school photo with overlay */}
+      {/* Left panel — school photo with overlay (hidden on mobile) */}
+      {!isMobile && (
       <div style={styles.leftPanel}>
         <img src={schoolPhoto} alt="Plantation Park Elementary" style={styles.photo} />
         <div style={styles.overlay} />
@@ -69,9 +78,10 @@ function Login() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Right panel — login form */}
-      <div style={styles.rightPanel}>
+      <div style={{ ...styles.rightPanel, padding: isMobile ? '24px' : '48px' }}>
         <div style={styles.formWrapper}>
           <div style={styles.formTitle}>Welcome back</div>
           <div style={styles.formSubtitle}>Sign in to your account to continue</div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Sidebar from '../../components/Sidebar'
-import { Send, School, Star, Search, Plus, X } from 'lucide-react'
+import { Send, School, Star, Search, Plus, X, ChevronLeft } from 'lucide-react'
 import theme from '../../theme'
 import api from '../../api/axios'
 
@@ -127,11 +127,25 @@ function ParentMessages() {
   const [threads, setThreads] = useState([])
   const [filter, setFilter] = useState('all')
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   const [teachers, setTeachers] = useState([])
 
   const [activeThreadId, setActiveThreadId] = useState(null)
   const [threadData, setThreadData] = useState(null)
   const [draft, setDraft] = useState('')
+
+  const closeThread = () => {
+    setActiveThreadId(null)
+    setThreadData(null)
+    setDraft('')
+  }
 
   const [composing, setComposing] = useState(false)
   const [composeSearch, setComposeSearch] = useState('')
@@ -211,14 +225,14 @@ function ParentMessages() {
       <Sidebar />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: theme.colors.background }}>
 
-        <div style={{ background: 'white', padding: '16px 28px', borderBottom: `1px solid ${theme.colors.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ background: 'white', padding: isMobile ? '68px 16px 16px' : '16px 28px', borderBottom: `1px solid ${theme.colors.border}`, display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '10px' : '0' }}>
           <div>
             <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>Messages</div>
             <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px' }}>Talk with your children's teachers</div>
           </div>
           <button
             onClick={startCompose}
-            style={{ background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: '700', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: '700', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: isMobile ? '100%' : 'auto' }}
           >
             <Plus size={15} /> Compose
           </button>
@@ -230,7 +244,8 @@ function ParentMessages() {
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-          <div style={{ width: '320px', flexShrink: 0, borderRight: `1px solid ${theme.colors.border}`, display: 'flex', flexDirection: 'column', background: 'white' }}>
+          {(!isMobile || (!activeThreadId && !composing)) && (
+          <div style={{ width: isMobile ? '100%' : '320px', flexShrink: 0, borderRight: `1px solid ${theme.colors.border}`, display: 'flex', flexDirection: 'column', background: 'white' }}>
             <div style={{ display: 'flex', gap: '6px', padding: '14px 16px', flexWrap: 'wrap', borderBottom: `1px solid ${theme.colors.border}` }}>
               {FILTERS.map(f => (
                 <button
@@ -256,7 +271,9 @@ function ParentMessages() {
               ))}
             </div>
           </div>
+          )}
 
+          {(!isMobile || activeThreadId || composing) && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: theme.colors.background }}>
             {composing ? (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -306,6 +323,11 @@ function ParentMessages() {
             ) : activeThreadId ? (
               <>
                 <div style={{ padding: '14px 24px', borderBottom: `1px solid ${theme.colors.border}`, background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {isMobile && (
+                    <button onClick={closeThread} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                      <ChevronLeft size={18} color={theme.colors.textMuted} />
+                    </button>
+                  )}
                   <div>
                     <div style={{ fontSize: '14px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {threads.find(t => t.thread_id === activeThreadId) && isCoordinatorThread(threads.find(t => t.thread_id === activeThreadId)) && (
@@ -335,6 +357,7 @@ function ParentMessages() {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
     </div>

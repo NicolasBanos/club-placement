@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar from '../../components/Sidebar'
 import { Users, Clock, MapPin, AlertCircle, ChevronDown, ChevronRight, Phone, UserCheck } from 'lucide-react'
 import theme from '../../theme'
@@ -11,6 +11,14 @@ function MyClub() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState(null)  // student_id currently expanded
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     api.get('/clubs/mine')
@@ -45,12 +53,12 @@ function MyClub() {
       <Sidebar />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: theme.colors.background }}>
 
-        <div style={{ background: 'white', padding: '16px 28px', borderBottom: `1px solid ${theme.colors.border}` }}>
+        <div style={{ background: 'white', padding: isMobile ? '68px 16px 16px' : '16px 28px', borderBottom: `1px solid ${theme.colors.border}` }}>
           <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>My Club</div>
           <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px' }}>Your club roster and waitlist</div>
         </div>
 
-        <div style={{ flex: 1, padding: '24px 28px', maxWidth: '900px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px', maxWidth: isMobile ? '100%' : '900px' }}>
           {loading ? (
             <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontSize: '13px' }}>Loading…</div>
           ) : error ? (
@@ -91,9 +99,8 @@ function MyClub() {
                       {club.enrolled.map(s => {
                         const isOpen = expanded === s.student_id
                         return (
-                          <>
+                          <React.Fragment key={s.student_id}>
                             <tr
-                              key={s.student_id}
                               onClick={() => toggleExpand(s.student_id)}
                               style={{ cursor: 'pointer' }}
                             >
@@ -167,7 +174,7 @@ function MyClub() {
                                 </td>
                               </tr>
                             )}
-                          </>
+                          </React.Fragment>
                         )
                       })}
                     </tbody>
