@@ -5,8 +5,13 @@ from pydantic import BaseModel
 from database.connection import get_db
 from models.user import User, UserRole
 from core.auth import hash_password, verify_password, create_access_token, get_current_user, require_coordinator, require_teacher, require_parent
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from fastapi import Request
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+limiter = Limiter(key_func=get_remote_address)
 
 
 # --- Schemas (what data we expect) ---
@@ -69,7 +74,9 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit("5/minute")
 def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):

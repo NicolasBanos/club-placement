@@ -19,6 +19,14 @@ function AssignmentResults() {
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('success')
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   const fetchData = async () => {
     try {
       const [resultsRes, clubsRes] = await Promise.all([
@@ -89,7 +97,7 @@ function AssignmentResults() {
         {/* Top bar */}
         <div style={{
           background: 'white',
-          padding: '16px 28px',
+          padding: isMobile ? '68px 16px 16px' : '16px 28px',
           borderBottom: `1px solid ${theme.colors.border}`,
           display: 'flex',
           alignItems: 'center',
@@ -122,7 +130,7 @@ function AssignmentResults() {
         )}
 
         {/* Content */}
-        <div style={{ flex: 1, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
           {loading ? (
             <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary }}>Loading results...</div>
@@ -135,7 +143,7 @@ function AssignmentResults() {
           ) : (
             <>
               {/* Tab buttons */}
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 {tabs.map(tab => {
                   const Icon = tab.icon
                   const isActive = activeTab === tab.key
@@ -173,7 +181,7 @@ function AssignmentResults() {
               </div>
 
               {/* Search and filter */}
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px', flexDirection: isMobile ? 'column' : 'row' }}>
                 <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <Search size={14} color="#aaa" style={{ position: 'absolute', left: '12px' }} />
                   <input
@@ -234,7 +242,7 @@ function AssignmentResults() {
                       flexDirection: 'column',
                       gap: '12px',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: '16px', flexDirection: isMobile ? 'column' : 'row' }}>
                         {/* Status indicator */}
                         <div style={{
                           width: '4px',
@@ -260,7 +268,7 @@ function AssignmentResults() {
                         </div>
 
                         {/* Assignment info */}
-                        <div style={{ textAlign: 'right' }}>
+                        <div style={{ textAlign: isMobile ? 'left' : 'right', width: isMobile ? '100%' : 'auto' }}>
                           {activeTab === 'assigned' && (
                             <>
                               <div style={{ fontSize: '13px', fontWeight: '600', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>{student.club_name}</div>

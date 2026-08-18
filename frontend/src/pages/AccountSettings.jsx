@@ -3,9 +3,18 @@ import Sidebar from '../components/Sidebar'
 import { Mail, Save } from 'lucide-react'
 import theme from '../theme'
 import api from '../api/axios'
+
 function AccountSettings() {
   const [emailDraft, setEmailDraft] = useState('')
   const [loading, setLoading] = useState(true)
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState('success')
@@ -38,7 +47,7 @@ function AccountSettings() {
       <Sidebar />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: theme.colors.background }}>
 
-        <div style={{ background: 'white', padding: '16px 28px', borderBottom: `1px solid ${theme.colors.border}` }}>
+        <div style={{ background: 'white', padding: isMobile ? '68px 16px 16px' : '16px 28px', borderBottom: `1px solid ${theme.colors.border}` }}>
           <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>Account Settings</div>
           <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px' }}>Manage your login email</div>
         </div>
@@ -47,7 +56,7 @@ function AccountSettings() {
           <div style={{ margin: '16px 28px 0', background: msgType === 'error' ? theme.colors.dangerLight : theme.colors.primaryLight, border: `1px solid ${msgType === 'error' ? theme.colors.danger : theme.colors.border}`, borderRadius: '9px', padding: '12px 16px', color: msgType === 'error' ? theme.colors.danger : theme.colors.primary, fontSize: '13px', fontFamily: theme.fonts.primary, fontWeight: '600' }}>{msg}</div>
         )}
 
-        <div style={{ flex: 1, padding: '24px 28px', maxWidth: '480px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px', maxWidth: isMobile ? '100%' : '480px' }}>
           {loading ? (
             <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontSize: '13px' }}>Loading…</div>
           ) : (

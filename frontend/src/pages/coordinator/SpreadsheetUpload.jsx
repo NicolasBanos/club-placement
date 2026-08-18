@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Sidebar from '../../components/Sidebar'
 import { Upload, Download, FileSpreadsheet, Check, AlertCircle, X, Clock, ArrowLeft, Users, UserPlus, Trash2 } from 'lucide-react'
 import theme from '../../theme'
@@ -10,13 +10,21 @@ const GRADE_LABELS = { 0: 'K', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5' }
 function SpreadsheetUpload() {
   const [tab, setTab] = useState('students')   // students | teachers
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: theme.colors.background }}>
 
         <div style={{
-          background: 'white', padding: '16px 28px', borderBottom: `1px solid ${theme.colors.border}`,
+          background: 'white', padding: isMobile ? '68px 16px 16px' : '16px 28px', borderBottom: `1px solid ${theme.colors.border}`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
@@ -29,7 +37,7 @@ function SpreadsheetUpload() {
           </div>
         </div>
 
-        <div style={{ padding: '16px 28px 0', display: 'flex', gap: '8px' }}>
+        <div style={{ padding: isMobile ? '16px 16px 0' : '16px 28px 0', display: 'flex', gap: '8px' }}>
           <button
             onClick={() => setTab('students')}
             style={{
@@ -58,7 +66,7 @@ function SpreadsheetUpload() {
           </button>
         </div>
 
-        <div style={{ flex: 1, padding: '20px 28px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '20px 28px' }}>
           {tab === 'students' ? <StudentImport /> : <TeacherImport />}
         </div>
       </div>
@@ -407,6 +415,13 @@ function TeacherImport() {
   const [teachers, setTeachers] = useState([])
   const [loading, setLoading] = useState(true)
   const [loaded, setLoaded] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('success')

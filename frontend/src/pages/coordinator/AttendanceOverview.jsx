@@ -30,6 +30,14 @@ function AttendanceOverview() {
     const [message, setMessage] = useState('')
     const [messageType, setMessageType] = useState('success')
 
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768)
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
     useEffect(() => {
         const fetchDates = async () => {
             try {
@@ -111,11 +119,13 @@ function AttendanceOverview() {
 
                 <div style={{
                     background: 'white',
-                    padding: '16px 28px',
+                    padding: isMobile ? '68px 16px 16px' : '16px 28px',
                     borderBottom: `1px solid ${theme.colors.border}`,
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: isMobile ? 'flex-start' : 'center',
                     justifyContent: 'space-between',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    gap: isMobile ? '12px' : '0',
                 }}>
                     <div>
                         <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
@@ -125,7 +135,7 @@ function AttendanceOverview() {
                             View and adjust attendance across all clubs
                         </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
                         <CalendarCheck size={16} color={theme.colors.primary} />
                         <select
                             value={selectedDate}
@@ -169,9 +179,9 @@ function AttendanceOverview() {
                     </div>
                 )}
 
-                <div style={{ flex: 1, padding: '24px 28px', display: 'flex', gap: '20px' }}>
+                <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
 
-                    <div style={{ width: '260px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ width: isMobile ? '100%' : '260px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ fontSize: '12px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginBottom: '4px', letterSpacing: '0.05em' }}>
                             CLUBS MEETING THIS DAY
                         </div>
@@ -236,12 +246,13 @@ function AttendanceOverview() {
                                             return (
                                                 <div key={student.student_id} style={{
                                                     display: 'flex',
-                                                    alignItems: 'center',
+                                                    alignItems: isMobile ? 'flex-start' : 'center',
                                                     gap: '12px',
                                                     padding: '12px',
                                                     background: flagged ? theme.colors.dangerLight : theme.colors.background,
                                                     borderRadius: '8px',
                                                     border: flagged ? `1px solid ${theme.colors.danger}` : 'none',
+                                                    flexDirection: isMobile ? 'column' : 'row',
                                                 }}>
                                                     <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: sStyle.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: sStyle.color, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
                                                         {student.first_name[0]}{student.last_name[0]}

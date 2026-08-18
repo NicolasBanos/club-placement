@@ -6,6 +6,11 @@
   box-sizing: border-box;
 }
 
+html, body, #root {
+  height: 100%;
+  min-height: 100%;
+}
+
 body {
   font-family: 'Poppins', sans-serif;
   background-color: #F4F7F4;

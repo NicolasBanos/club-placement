@@ -55,6 +55,14 @@ function CoordinatorDashboard() {
   const [loading, setLoading] = useState(true)
   const [showAllMeetings, setShowAllMeetings] = useState(false)
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -87,11 +95,13 @@ function CoordinatorDashboard() {
         {/* Top bar */}
         <div style={{
           background: 'white',
-          padding: '16px 28px',
+          padding: isMobile ? '68px 16px 16px' : '16px 28px',
           borderBottom: `1px solid ${theme.colors.border}`,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: isMobile ? 'flex-start' : 'center',
           justifyContent: 'space-between',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '12px' : '0',
         }}>
           <div>
             <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
@@ -117,13 +127,15 @@ function CoordinatorDashboard() {
               gap: '6px',
               cursor: 'pointer',
               boxShadow: '0 4px 12px rgba(26,92,26,0.25)',
+              width: isMobile ? '100%' : 'auto',
+              justifyContent: 'center',
             }}>
             <Trophy size={14} /> Run Lottery
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
@@ -132,7 +144,7 @@ function CoordinatorDashboard() {
           ) : (
             <>
               {/* Stat cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: '16px' }}>
                 <StatCard icon={Users} label="Enrolled" value={stats.total_enrolled} color={theme.colors.primary} lightColor={theme.colors.primaryLight} subtitle={`${stats.total_clubs} clubs active`} />
                 <StatCard icon={List} label="Waitlisted" value={stats.total_waitlisted} color={theme.colors.warning} lightColor={theme.colors.warningLight} subtitle="students waiting" />
                 <StatCard icon={FileCheck} label="Excuses" value={stats.pending_excuses} color={theme.colors.danger} lightColor={theme.colors.dangerLight} subtitle="needs review" />
@@ -140,7 +152,7 @@ function CoordinatorDashboard() {
               </div>
 
               {/* Bottom row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', flex: 1 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px', flex: 1 }}>
 
                 {/* Club capacity */}
                 <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '24px', border: `1px solid ${theme.colors.border}` }}>

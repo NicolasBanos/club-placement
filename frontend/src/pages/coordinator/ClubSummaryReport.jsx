@@ -20,6 +20,14 @@ function ClubSummaryReport() {
   const [selectedClubId, setSelectedClubId] = useState('all')   // 'all' | club id
   const [selectedTeacher, setSelectedTeacher] = useState('all') // 'all' | teacher name
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -113,11 +121,13 @@ function ClubSummaryReport() {
 
         <div className="no-print" style={{
           background: 'white',
-          padding: '16px 28px',
+          padding: isMobile ? '68px 16px 16px' : '16px 28px',
           borderBottom: `1px solid ${theme.colors.border}`,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: isMobile ? 'flex-start' : 'center',
           justifyContent: 'space-between',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '10px' : '0',
         }}>
           <div>
             <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
@@ -129,12 +139,12 @@ function ClubSummaryReport() {
           </div>
           <button
             onClick={handlePrint}
-            style={{ background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            style={{ background: theme.colors.primary, color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: '600', fontFamily: theme.fonts.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: isMobile ? '100%' : 'auto' }}>
             <Printer size={15} /> Print / Save PDF
           </button>
         </div>
 
-        <div className="no-print" style={{ padding: '16px 28px 0' }}>
+        <div className="no-print" style={{ padding: isMobile ? '16px 16px 0' : '16px 28px 0' }}>
           <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '16px 20px', border: `1px solid ${theme.colors.border}`, display: 'flex', gap: '28px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: theme.colors.primary, fontFamily: theme.fonts.primary, fontSize: '12px', fontWeight: '700' }}>
               <Settings size={14} /> REPORT OPTIONS
@@ -203,11 +213,11 @@ function ClubSummaryReport() {
           </div>
         </div>
 
-        <div className="report-area" style={{ flex: 1, padding: '24px 28px' }}>
+        <div className="report-area" style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px' }}>
           {loading ? (
             <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontSize: '13px' }}>Loading report...</div>
           ) : (
-            <div style={{ maxWidth: '900px', margin: '0 auto', background: 'white', borderRadius: theme.borderRadius.lg, padding: '36px', border: `1px solid ${theme.colors.border}` }}>
+            <div style={{ maxWidth: '900px', margin: '0 auto', background: 'white', borderRadius: theme.borderRadius.lg, padding: isMobile ? '18px' : '36px', border: `1px solid ${theme.colors.border}` }}>
 
               <div style={{ borderBottom: `2px solid ${theme.colors.primary}`, paddingBottom: '16px', marginBottom: '24px' }}>
                 <div style={{ fontSize: '22px', fontWeight: '800', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
