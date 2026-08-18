@@ -11,6 +11,7 @@ class MessageThread(Base):
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(String, nullable=False)
     subject = Column(String, nullable=True)
+    audience_label = Column(String, nullable=True)
 
     participants = relationship("ThreadParticipant", back_populates="thread")
     messages = relationship("Message", back_populates="thread")
