@@ -38,6 +38,14 @@ function AttendanceSubmission() {
   const [meetingDates, setMeetingDates] = useState([])
   const [selectedMeetingId, setSelectedMeetingId] = useState(null)
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   const [data, setData] = useState(null)
   const [marks, setMarks] = useState({})
   const [loading, setLoading] = useState(true)
@@ -140,7 +148,7 @@ function AttendanceSubmission() {
       <Sidebar />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: theme.colors.background }}>
 
-        <div style={{ background: 'white', padding: '16px 28px', borderBottom: `1px solid ${theme.colors.border}` }}>
+        <div style={{ background: 'white', padding: isMobile ? '68px 16px 16px' : '16px 28px', borderBottom: `1px solid ${theme.colors.border}` }}>
           <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>Attendance</div>
           <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px' }}>View and submit attendance by date</div>
         </div>
@@ -149,7 +157,7 @@ function AttendanceSubmission() {
           <div style={{ margin: '16px 28px 0', background: msgType === 'error' ? theme.colors.dangerLight : theme.colors.primaryLight, border: `1px solid ${msgType === 'error' ? theme.colors.danger : theme.colors.border}`, borderRadius: '9px', padding: '12px 16px', color: msgType === 'error' ? theme.colors.danger : theme.colors.primary, fontSize: '13px', fontFamily: theme.fonts.primary, fontWeight: '600' }}>{msg}</div>
         )}
 
-        <div style={{ flex: 1, padding: '24px 28px', maxWidth: '820px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px', maxWidth: isMobile ? '100%' : '820px' }}>
           {loading ? (
             <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontSize: '13px' }}>Loading…</div>
           ) : !club ? (
@@ -175,7 +183,7 @@ function AttendanceSubmission() {
                 <select
                   value={selectedMeetingId || ''}
                   onChange={e => setSelectedMeetingId(Number(e.target.value))}
-                  style={{ marginLeft: 'auto', padding: '8px 12px', fontSize: '13px', fontFamily: theme.fonts.primary, border: `1px solid ${theme.colors.border}`, borderRadius: '8px', minWidth: '220px' }}
+                  style={{ marginLeft: isMobile ? '0' : 'auto', padding: '8px 12px', fontSize: '13px', fontFamily: theme.fonts.primary, border: `1px solid ${theme.colors.border}`, borderRadius: '8px', minWidth: isMobile ? '100%' : '220px' }}
                 >
                   {meetingDates.map(m => (
                     <option key={m.id} value={m.id}>

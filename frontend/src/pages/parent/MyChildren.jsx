@@ -23,6 +23,14 @@ function MyChildren() {
   const [locked, setLocked] = useState(false)
   const [homeroomTeachers, setHomeroomTeachers] = useState([])
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   // editing state
   const [editingChoices, setEditingChoices] = useState(null)   // student id
   const [choiceDraft, setChoiceDraft] = useState({ choice1: '', choice2: '', choice3: '' })
@@ -142,7 +150,7 @@ function MyChildren() {
       <Sidebar />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: theme.colors.background }}>
 
-        <div style={{ background: 'white', padding: '16px 28px', borderBottom: `1px solid ${theme.colors.border}` }}>
+        <div style={{ background: 'white', padding: isMobile ? '68px 16px 16px' : '16px 28px', borderBottom: `1px solid ${theme.colors.border}` }}>
           <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>My Children</div>
           <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '2px' }}>View and manage your children, choices, and pickups</div>
         </div>
@@ -157,7 +165,7 @@ function MyChildren() {
           </div>
         )}
 
-        <div style={{ flex: 1, padding: '24px 28px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px' }}>
           {loading ? (
             <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontSize: '13px' }}>Loading…</div>
           ) : families.length === 0 ? (
@@ -259,11 +267,11 @@ function MyChildren() {
                   addingChildTo === family.family_id ? (
                     <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border}`, padding: '18px', marginTop: '14px' }}>
                       <div style={{ fontSize: '13px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, marginBottom: '10px' }}>Add a child</div>
-                      <div style={{ display: 'flex', gap: '10px' }}>
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
                         <div style={{ flex: 1 }}><label style={lbl}>First name</label><input style={inp} value={childDraft.first_name} onChange={e => setChildDraft({ ...childDraft, first_name: e.target.value })} /></div>
                         <div style={{ flex: 1 }}><label style={lbl}>Last name</label><input style={inp} value={childDraft.last_name} onChange={e => setChildDraft({ ...childDraft, last_name: e.target.value })} /></div>
                       </div>
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
                         <div style={{ flex: 1 }}><label style={lbl}>Grade</label>
                           <select style={inp} value={childDraft.grade} onChange={e => setChildDraft({ ...childDraft, grade: e.target.value, teacher: '' })}>
                             <option value="">Select…</option>
@@ -314,7 +322,7 @@ function MyChildren() {
                     {isCreator && (
                       addingPickupTo === family.family_id ? (
                         <div style={{ marginTop: '12px', borderTop: `1px solid ${theme.colors.border}`, paddingTop: '12px' }}>
-                          <div style={{ display: 'flex', gap: '10px' }}>
+                          <div style={{ display: 'flex', gap: '10px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
                             <div style={{ flex: 1.2 }}><label style={lbl}>Name</label><input style={inp} value={pickupDraft.name} onChange={e => setPickupDraft({ ...pickupDraft, name: e.target.value })} /></div>
                             <div style={{ flex: 1 }}><label style={lbl}>Phone</label><input style={inp} value={pickupDraft.phone} onChange={e => setPickupDraft({ ...pickupDraft, phone: e.target.value })} /></div>
                           </div>
