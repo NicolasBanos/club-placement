@@ -13,6 +13,16 @@ function formatDate(iso) {
   return d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
 }
 
+function formatTime(time) {
+  if (!time) return ''
+  if (time.includes('AM') || time.includes('PM')) return time
+  const [hours, minutes] = time.split(':')
+  const h = parseInt(hours)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const hour12 = h % 12 || 12
+  return `${hour12}:${minutes} ${ampm}`
+}
+
 function ParentDashboard() {
   const navigate = useNavigate()
   const [families, setFamilies] = useState([])
@@ -175,7 +185,7 @@ function ParentDashboard() {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: '13px', fontWeight: '600', color: '#333', fontFamily: theme.fonts.primary }}>{u.student} · {u.club}</div>
                           <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                            {formatDate(u.date)} · {u.start}–{u.end} · <MapPin size={11} /> pickup {u.location}
+                            {formatDate(u.date)} · {formatTime(u.start)}–{formatTime(u.end)} · <MapPin size={11} /> pickup {u.location}
                           </div>
                         </div>
                       </div>

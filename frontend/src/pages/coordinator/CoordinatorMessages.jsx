@@ -34,6 +34,7 @@ const AUDIENCE_OPTIONS = [
 function ThreadListRow({ thread, isActive, onClick }) {
   const other = thread.participants[0]
   const label = thread.is_announcement ? thread.subject : (other ? other.name : 'Unknown')
+  const subLabel = thread.is_announcement ? thread.audience_label : other?.context
   return (
     <div
       onClick={onClick}
@@ -56,7 +57,14 @@ function ThreadListRow({ thread, isActive, onClick }) {
           )}
         </div>
         {thread.is_announcement && (
-          <div style={{ fontSize: '10px', fontWeight: '700', color: theme.colors.warning, fontFamily: theme.fonts.primary, marginTop: '1px' }}>ANNOUNCEMENT</div>
+          <div style={{ fontSize: '10px', fontWeight: '700', color: theme.colors.warning, fontFamily: theme.fonts.primary, marginTop: '1px' }}>
+            ANNOUNCEMENT · {subLabel}
+          </div>
+        )}
+        {!thread.is_announcement && subLabel && (
+          <div style={{ fontSize: '10px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '1px' }}>
+            {subLabel}
+          </div>
         )}
         {thread.last_message && (
           <div style={{

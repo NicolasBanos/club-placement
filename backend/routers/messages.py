@@ -144,6 +144,40 @@ def _can_message(db: Session, sender: User, recipient: User) -> bool:
 
     return False
 
+def _get_user_context(db: Session, user: User) -> str:
+    """
+    Returns a short descriptive label for a user, for display in message threads:
+    - Teacher: their club name
+    - Parent: their child(ren)'s name(s) + club(s)
+    - Coordinator: just "Coordinator"
+    """
+    if user.role.value == "teacher":
+        club = db.query(Club).filter(Club.teacher_id == user.id).first()
+        return club.name if club else ""
+
+    if user.role.value == "parent":
+        family_ids = {
+            link.family_id for link in
+            db.query(ParentFamily).filter(ParentFamily.parent_id == user.id).all()
+        }
+        if not family_ids:
+            return ""
+        students = db.query(Student).filter(Student.family_id.in_(family_ids)).all()
+        parts = []
+        for s in students:
+            assignment = db.query(Assignment).filter(Assignment.student_id == s.id).first()
+            if assignment:
+                club = db.query(Club).filter(Club.id == assignment.club_id).first()
+                parts.append(f"{s.first_name} · {club.name}" if club else s.first_name)
+            else:
+                parts.append(s.first_name)
+        return ", ".join(parts)
+
+    if user.role.value == "coordinator":
+        return "Coordinator"
+
+    return ""
+
 
 # ---------- Get the school's coordinator (for teacher/parent "message coordinator" flows) ----------
 
@@ -273,7 +307,12 @@ def list_my_threads(
         for p in other_participants:
             u = db.query(User).filter(User.id == p.user_id).first()
             if u:
-                other_users.append({"id": u.id, "name": f"{u.first_name} {u.last_name}", "role": u.role.value})
+                other_users.append({
+                    "id": u.id,
+                    "name": f"{u.first_name} {u.last_name}",
+                    "role": u.role.value,
+                    "context": _get_user_context(db, u),
+                })
 
         last_message = db.query(Message).filter(
             Message.thread_id == thread_id
@@ -298,6 +337,7 @@ def list_my_threads(
             "created_by": thread.created_by,
             "created_by_role": creator.role.value if creator else None,
             "created_by_name": f"{creator.first_name} {creator.last_name}" if creator else None,
+            "audience_label": thread.audience_label,
             "participants": other_users,
             "is_unread": is_unread,
             "last_message": {
@@ -543,30 +583,37 @@ def send_announcement(
     """
     role = current_user.role.value
     recipient_ids = set()
+    audience_label = ""
 
     if role == "coordinator":
         if request.audience_type == "club_parents":
             if not request.club_id:
                 raise HTTPException(status_code=400, detail="club_id is required for this audience")
+            club = db.query(Club).filter(Club.id == request.club_id).first()
             students = db.query(Student).join(
                 Assignment, Assignment.student_id == Student.id
             ).filter(Assignment.club_id == request.club_id).all()
             family_ids = {s.family_id for s in students}
             links = db.query(ParentFamily).filter(ParentFamily.family_id.in_(family_ids)).all()
             recipient_ids = {l.parent_id for l in links}
+            audience_label = f"All parents in {club.name}" if club else "Club parents"
 
         elif request.audience_type == "all_families":
             links = db.query(ParentFamily).all()
             recipient_ids = {l.parent_id for l in links}
+            audience_label = "All families"
 
         elif request.audience_type == "teacher":
             if not request.teacher_id:
                 raise HTTPException(status_code=400, detail="teacher_id is required for this audience")
             recipient_ids = {request.teacher_id}
+            teacher_user = db.query(User).filter(User.id == request.teacher_id).first()
+            audience_label = f"{teacher_user.first_name} {teacher_user.last_name}" if teacher_user else "Teacher"
 
         elif request.audience_type == "all_teachers":
             teachers = db.query(User).filter(User.role == "teacher").all()
             recipient_ids = {t.id for t in teachers}
+            audience_label = "All teachers"
 
         else:
             raise HTTPException(status_code=400, detail="Invalid audience_type for coordinator")
@@ -585,6 +632,7 @@ def send_announcement(
         family_ids = {s.family_id for s in students}
         links = db.query(ParentFamily).filter(ParentFamily.family_id.in_(family_ids)).all()
         recipient_ids = {l.parent_id for l in links}
+        audience_label = f"{club.name} families"
 
     else:
         raise HTTPException(status_code=403, detail="Only coordinators and teachers can send announcements")
@@ -597,6 +645,7 @@ def send_announcement(
         created_by=current_user.id,
         created_at=datetime.utcnow().isoformat() + "Z",
         subject=request.subject.strip(),
+        audience_label=audience_label,
     )
     db.add(new_thread)
     db.commit()
