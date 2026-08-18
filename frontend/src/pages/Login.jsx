@@ -39,7 +39,11 @@ function Login() {
       else if (role === 'parent') navigate('/parent')
 
     } catch (err) {
-      setError('Incorrect email or password. Please try again.')
+      if (err.response?.status === 429) {
+        setError('Too many login attempts. Please wait a minute and try again.')
+      } else {
+        setError('Incorrect email or password. Please try again.')
+      }
     } finally {
       setLoading(false)
     }

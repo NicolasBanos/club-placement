@@ -16,6 +16,14 @@ function RosterManagement() {
   const [activeTab, setActiveTab] = useState('enrolled')
   const [expandedStudent, setExpandedStudent] = useState(null)
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   const fetchRosters = async () => {
     try {
       const res = await api.get('/roster/')
@@ -153,11 +161,13 @@ function RosterManagement() {
         {/* Top bar */}
         <div style={{
           background: 'white',
-          padding: '16px 28px',
+          padding: isMobile ? '68px 16px 16px' : '16px 28px',
           borderBottom: `1px solid ${theme.colors.border}`,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: isMobile ? 'flex-start' : 'center',
           justifyContent: 'space-between',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '10px' : '0',
         }}>
           <div>
             <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
@@ -194,10 +204,10 @@ function RosterManagement() {
         )}
 
         {/* Content */}
-        <div style={{ flex: 1, padding: '24px 28px', display: 'flex', gap: '20px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
 
           {/* Club list */}
-          <div style={{ width: '260px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: isMobile ? '100%' : '260px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ fontSize: '12px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginBottom: '4px', letterSpacing: '0.05em' }}>
               SELECT CLUB
             </div>
@@ -247,7 +257,7 @@ function RosterManagement() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* Club header */}
-              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}`, display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '14px' : '0' }}>
                 <div>
                   <div style={{ fontSize: '16px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>{selectedClub.name}</div>
                   <div style={{ fontSize: '12px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginTop: '4px' }}>

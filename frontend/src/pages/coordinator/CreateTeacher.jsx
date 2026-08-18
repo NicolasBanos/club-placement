@@ -20,6 +20,14 @@ function CreateTeacher() {
     club_id: '',
   })
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   const fetchData = async () => {
     try {
       const [teachersRes, clubsRes] = await Promise.all([
@@ -79,11 +87,13 @@ function CreateTeacher() {
         {/* Top bar */}
         <div style={{
           background: 'white',
-          padding: '16px 28px',
+          padding: isMobile ? '68px 16px 16px' : '16px 28px',
           borderBottom: `1px solid ${theme.colors.border}`,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: isMobile ? 'flex-start' : 'center',
           justifyContent: 'space-between',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '12px' : '0',
         }}>
           <div>
             <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
@@ -109,13 +119,15 @@ function CreateTeacher() {
               gap: '6px',
               cursor: 'pointer',
               boxShadow: '0 4px 12px rgba(26,92,26,0.25)',
+              width: isMobile ? '100%' : 'auto',
+              justifyContent: 'center',
             }}>
             <Plus size={14} /> Add Teacher
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, padding: '24px 28px', display: 'flex', gap: '20px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
 
           {/* Teacher list */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -190,15 +202,16 @@ function CreateTeacher() {
           {/* Form panel */}
           {showForm && (
             <div style={{
-              width: '360px',
+              width: isMobile ? '100%' : '360px',
               background: 'white',
               borderRadius: theme.borderRadius.lg,
               padding: '24px',
               border: `1px solid ${theme.colors.border}`,
               flexShrink: 0,
               alignSelf: 'flex-start',
-              position: 'sticky',
-              top: '24px',
+              position: isMobile ? 'static' : 'sticky',
+              top: isMobile ? 'auto' : '24px',
+              boxSizing: 'border-box',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                 <div style={{ fontSize: '15px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>

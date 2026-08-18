@@ -31,6 +31,14 @@ function ExcuseApproval() {
     const [messageType, setMessageType] = useState('success')
     const [activeTab, setActiveTab] = useState('pending')
 
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768)
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
     const fetchData = async () => {
         try {
             const [pendingRes, historyRes] = await Promise.all([
@@ -93,11 +101,13 @@ function ExcuseApproval() {
                 {/* Top bar */}
                 <div style={{
                     background: 'white',
-                    padding: '16px 28px',
+                    padding: isMobile ? '68px 16px 16px' : '16px 28px',
                     borderBottom: `1px solid ${theme.colors.border}`,
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: isMobile ? 'flex-start' : 'center',
                     justifyContent: 'space-between',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    gap: isMobile ? '10px' : '0',
                 }}>
                     <div>
                         <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
@@ -134,7 +144,7 @@ function ExcuseApproval() {
                 )}
 
                 {/* Content */}
-                <div style={{ flex: 1, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
                     {/* Tabs */}
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -196,7 +206,7 @@ function ExcuseApproval() {
                                             borderRadius: '10px',
                                             border: excuse.is_first_day ? `1px solid ${theme.colors.warning}` : `1px solid ${theme.colors.border}`,
                                         }}>
-                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
                                                 <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: theme.colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, flexShrink: 0 }}>
                                                     {excuse.student_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                                 </div>
@@ -226,7 +236,7 @@ function ExcuseApproval() {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                                                <div style={{ display: 'flex', gap: '6px', flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
                                                     <button
                                                         onClick={() => handleApprove(excuse.attendance_id, excuse.student_name)}
                                                         disabled={actionLoading}

@@ -24,6 +24,14 @@ function AttendanceSummary() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [loading, setLoading] = useState(true)
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   useEffect(() => {
     if (role === 'coordinator') {
       api.get('/dashboard/clubs').then(res => setClubs(res.data)).catch(() => {})
@@ -56,7 +64,7 @@ function AttendanceSummary() {
       <Sidebar />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: theme.colors.background }}>
 
-        <div style={{ background: 'white', padding: '16px 28px', borderBottom: `1px solid ${theme.colors.border}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ background: 'white', padding: isMobile ? '68px 16px 16px' : '16px 28px', borderBottom: `1px solid ${theme.colors.border}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button onClick={() => navigate(backPath)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
             <ArrowLeft size={18} color={theme.colors.textMuted} />
           </button>
@@ -66,7 +74,7 @@ function AttendanceSummary() {
           </div>
         </div>
 
-        <div style={{ padding: '16px 28px 0', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ padding: isMobile ? '16px 16px 0' : '16px 28px 0', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: '6px' }}>
             {TYPE_FILTERS.map(f => (
               <button
@@ -100,7 +108,7 @@ function AttendanceSummary() {
           )}
         </div>
 
-        <div style={{ flex: 1, padding: '20px 28px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '20px 28px' }}>
           {loading ? (
             <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontSize: '13px' }}>Loading…</div>
           ) : filtered.length === 0 ? (
@@ -109,16 +117,38 @@ function AttendanceSummary() {
             </div>
           ) : (
             <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border}`, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 130px 130px 130px', padding: '10px 16px', borderBottom: `1px solid ${theme.colors.border}`, background: theme.colors.background }}>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase' }}>Student</span>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase' }}>Grade</span>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase' }}>Unexcused</span>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase' }}>Excused</span>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase' }}>Late pickups</span>
-              </div>
+              {!isMobile && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 130px 130px 130px', padding: '10px 16px', borderBottom: `1px solid ${theme.colors.border}`, background: theme.colors.background }}>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase' }}>Student</span>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase' }}>Grade</span>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase' }}>Unexcused</span>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase' }}>Excused</span>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, textTransform: 'uppercase' }}>Late pickups</span>
+                </div>
+              )}
               {filtered.map(s => {
                 const atRisk = s.unexcused_absences >= 2
-                return (
+                return isMobile ? (
+                  <div key={`${s.student_id}-${s.club_id}`} style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.colors.border}`, background: atRisk ? theme.colors.dangerLight : 'white' }}>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {atRisk && <AlertTriangle size={13} color={theme.colors.danger} />}
+                      {s.first_name} {s.last_name}
+                      <span style={{ fontSize: '11px', fontWeight: '400', color: theme.colors.textMuted, marginLeft: 'auto' }}>Grade {GRADE_LABELS[s.grade]}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, marginBottom: '6px' }}>{s.club_name}</div>
+                    <div style={{ display: 'flex', gap: '14px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: atRisk ? '800' : '600', color: atRisk ? theme.colors.danger : theme.colors.textSecondary, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <X size={11} /> {s.unexcused_absences} unexcused
+                      </span>
+                      <span style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Check size={11} /> {s.excused_absences} excused
+                      </span>
+                      <span style={{ fontSize: '12px', color: theme.colors.textSecondary, fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={11} /> {s.late_pickups} late
+                      </span>
+                    </div>
+                  </div>
+                ) : (
                   <div key={`${s.student_id}-${s.club_id}`} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 130px 130px 130px', alignItems: 'center', padding: '12px 16px', borderBottom: `1px solid ${theme.colors.border}`, background: atRisk ? theme.colors.dangerLight : 'white' }}>
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: '700', color: '#333', fontFamily: theme.fonts.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>

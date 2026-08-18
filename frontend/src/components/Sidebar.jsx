@@ -1,9 +1,11 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Users, Trophy, ClipboardList, List, FileCheck, CalendarCheck, BarChart2, MessageSquare, Upload, LogOut, ChevronDown, School, UserPlus } from 'lucide-react'
+import { Home, Users, Trophy, ClipboardList, List, FileCheck, CalendarCheck, BarChart2, MessageSquare, Upload, LogOut, ChevronDown, School, UserPlus, Menu, X } from 'lucide-react'
 import theme from '../theme'
 import ppeLogo from '../assets/ppe-logo.png'
 import { useState, useEffect } from 'react'
 import api from '../api/axios'
+
+const MOBILE_BREAKPOINT = 768
 
 const coordinatorLinks = [
   { label: 'Dashboard', icon: Home, path: '/coordinator' },
@@ -44,6 +46,24 @@ function Sidebar() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const [pendingExcusesCount, setPendingExcusesCount] = useState(0)
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < MOBILE_BREAKPOINT
+      setIsMobile(mobile)
+      if (!mobile) setMobileOpen(false)  // reset drawer state when growing back to desktop
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Close the mobile drawer automatically whenever the route changes
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     api.get('/messages/unread-count')
@@ -98,95 +118,148 @@ function Sidebar() {
     navigate('/login')
   }
 
+  const sidebarStyle = isMobile
+    ? {
+        ...styles.sidebar,
+        position: 'fixed',
+        top: '52px',
+        left: 0,
+        width: '260px',
+        height: 'calc(100vh - 52px)',
+        minHeight: 0,
+        maxHeight: 'calc(100vh - 52px)',
+        overflowY: 'hidden',
+        zIndex: 998,
+        flexShrink: 0,
+        transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.25s ease',
+        boxShadow: mobileOpen ? '4px 0 24px rgba(0,0,0,0.25)' : 'none',
+      }
+    : styles.sidebar
+
   return (
-    <div style={styles.sidebar}>
-
-      {/* Logo */}
-      <div style={styles.logoArea}>
-        <div style={styles.owlBadge}>
-          <img src={ppeLogo} alt="PPE Logo" style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
+    <>
+      {/* Mobile top bar — always visible, full width, sits above all page content */}
+      {isMobile && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, height: '52px', zIndex: 1001,
+          background: theme.colors.sidebarBg,
+          borderBottom: `2px solid ${theme.colors.secondary}`,
+          display: 'flex', alignItems: 'center', padding: '0 14px', gap: '10px',
+        }}>
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            style={{
+              width: '36px', height: '36px', borderRadius: '9px',
+              background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}
+          >
+            {mobileOpen ? <X size={20} color="white" /> : <Menu size={20} color="white" />}
+          </button>
+          <span style={{ color: 'white', fontSize: '15px', fontWeight: '700', fontFamily: theme.fonts.primary }}>ClubsForKids</span>
         </div>
-        <div>
-          <div style={styles.appName}>ClubsForKids</div>
-          <div style={styles.tagline}>After school, made easy.</div>
-        </div>
-      </div>
+      )}
 
-      {/* School badge */}
-      <div style={styles.schoolBadge}>
-        <div style={styles.schoolDot}>
-          <img src={ppeLogo} alt="PPE" style={{ width: '14px', height: '14px', objectFit: 'contain' }} />
-        </div>
-        <span style={styles.schoolName}>Plantation Park Elementary</span>
-      </div>
+      {/* Backdrop — dims content behind the open drawer, tap to close */}
+      {isMobile && mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 997,
+          }}
+        />
+      )}
 
-      {/* User */}
-      <div style={{ position: 'relative' }}>
-        <div style={{ ...styles.userArea, cursor: 'pointer' }} onClick={() => setMenuOpen(!menuOpen)}>
-          <div style={styles.avatar}>{getInitial()}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={styles.userName}>{firstName}</div>
-            <div style={styles.roleBadge}>{getRoleLabel()}</div>
+      <div style={sidebarStyle}>
+
+        {/* Logo */}
+        <div style={styles.logoArea}>
+          <div style={styles.owlBadge}>
+            <img src={ppeLogo} alt="PPE Logo" style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
           </div>
-          <ChevronDown
-            size={14}
-            color="rgba(255,255,255,0.3)"
-            style={{ transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
-          />
+          <div>
+            <div style={styles.appName}>ClubsForKids</div>
+            <div style={styles.tagline}>After school, made easy.</div>
+          </div>
         </div>
 
-        {menuOpen && (
-          <div style={{
-            position: 'absolute', top: '100%', left: '12px', right: '12px', zIndex: 10,
-            background: 'white', borderRadius: '9px', boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-            overflow: 'hidden', marginTop: '4px',
-          }}>
-            <div
-              onClick={() => { setMenuOpen(false); navigate(getAccountPath()) }}
-              style={{ padding: '10px 14px', fontSize: '13px', fontFamily: theme.fonts.primary, color: '#333', cursor: 'pointer' }}
-            >
-              Account Settings
-            </div>
-            <div
-              onClick={handleLogout}
-              style={{ padding: '10px 14px', fontSize: '13px', fontFamily: theme.fonts.primary, color: theme.colors.danger, cursor: 'pointer', borderTop: `1px solid ${theme.colors.border}` }}
-            >
-              Sign out
-            </div>
+        {/* School badge */}
+        <div style={styles.schoolBadge}>
+          <div style={styles.schoolDot}>
+            <img src={ppeLogo} alt="PPE" style={{ width: '14px', height: '14px', objectFit: 'contain' }} />
           </div>
-        )}
-      </div>
+          <span style={styles.schoolName}>Plantation Park Elementary</span>
+        </div>
 
-      {/* Nav */}
-      <nav style={styles.nav}>
-        <div style={styles.navLabel}>MAIN MENU</div>
-        {getLinks().map((link) => {
-          const Icon = link.icon
-          const isActive = location.pathname === link.path
-          return (
-            <div
-              key={link.path}
-              onClick={() => navigate(link.path)}
-              style={isActive ? styles.navItemActive : styles.navItem}
-            >
-              <Icon size={18} color={isActive ? theme.colors.secondary : 'rgba(255,255,255,0.5)'} />
-              <span style={isActive ? styles.navTextActive : styles.navText}>
-                {link.label}
-              </span>
-              {link.badge && (
-                <div style={styles.badge}>{link.badge}</div>
-              )}
+        {/* User */}
+        <div style={{ position: 'relative' }}>
+          <div style={{ ...styles.userArea, cursor: 'pointer' }} onClick={() => setMenuOpen(!menuOpen)}>
+            <div style={styles.avatar}>{getInitial()}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={styles.userName}>{firstName}</div>
+              <div style={styles.roleBadge}>{getRoleLabel()}</div>
             </div>
-          )
-        })}
-      </nav>
+            <ChevronDown
+              size={14}
+              color="rgba(255,255,255,0.3)"
+              style={{ transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
+            />
+          </div>
 
-      {/* Logout */}
-      <div style={styles.logoutArea} onClick={handleLogout}>
-        <LogOut size={16} color="rgba(255,255,255,0.3)" />
-        <span style={styles.logoutText}>Sign out</span>
+          {menuOpen && (
+            <div style={{
+              position: 'absolute', top: '100%', left: '12px', right: '12px', zIndex: 10,
+              background: 'white', borderRadius: '9px', boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+              overflow: 'hidden', marginTop: '4px',
+            }}>
+              <div
+                onClick={() => { setMenuOpen(false); navigate(getAccountPath()) }}
+                style={{ padding: '10px 14px', fontSize: '13px', fontFamily: theme.fonts.primary, color: '#333', cursor: 'pointer' }}
+              >
+                Account Settings
+              </div>
+              <div
+                onClick={handleLogout}
+                style={{ padding: '10px 14px', fontSize: '13px', fontFamily: theme.fonts.primary, color: theme.colors.danger, cursor: 'pointer', borderTop: `1px solid ${theme.colors.border}` }}
+              >
+                Sign out
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Nav */}
+        <nav style={styles.nav}>
+          <div style={styles.navLabel}>MAIN MENU</div>
+          {getLinks().map((link) => {
+            const Icon = link.icon
+            const isActive = location.pathname === link.path
+            return (
+              <div
+                key={link.path}
+                onClick={() => navigate(link.path)}
+                style={isActive ? styles.navItemActive : styles.navItem}
+              >
+                <Icon size={18} color={isActive ? theme.colors.secondary : 'rgba(255,255,255,0.5)'} />
+                <span style={isActive ? styles.navTextActive : styles.navText}>
+                  {link.label}
+                </span>
+                {link.badge && (
+                  <div style={styles.badge}>{link.badge}</div>
+                )}
+              </div>
+            )
+          })}
+        </nav>
+
+        {/* Logout */}
+        <div style={styles.logoutArea} onClick={handleLogout}>
+          <LogOut size={16} color="rgba(255,255,255,0.3)" />
+          <span style={styles.logoutText}>Sign out</span>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -215,7 +288,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    padding: '2px',  // reduced from 4px
+    padding: '2px',
   },
   appName: {
     color: 'white',

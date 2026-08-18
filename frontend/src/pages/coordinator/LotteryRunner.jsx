@@ -23,6 +23,14 @@ function LotteryRunner() {
   const [checkingDuplicates, setCheckingDuplicates] = useState(false)
   const [showDuplicates, setShowDuplicates] = useState(false)
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -186,11 +194,13 @@ function LotteryRunner() {
         {/* Top bar */}
         <div style={{
           background: 'white',
-          padding: '16px 28px',
+          padding: isMobile ? '68px 16px 16px' : '16px 28px',
           borderBottom: `1px solid ${theme.colors.border}`,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: isMobile ? 'flex-start' : 'center',
           justifyContent: 'space-between',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '12px' : '0',
         }}>
           <div>
             <div style={{ fontSize: '20px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>
@@ -200,7 +210,7 @@ function LotteryRunner() {
               {totalStudents} students · {families.length} families
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', flexDirection: isMobile ? 'column' : 'row', width: isMobile ? '100%' : 'auto' }}>
             <button
               onClick={handleToggleLock}
               disabled={lockLoading}
@@ -295,7 +305,7 @@ function LotteryRunner() {
         )}
 
         {/* View mode toggle + search */}
-        <div style={{ margin: '16px 28px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ margin: isMobile ? '16px 16px 0' : '16px 28px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={() => setViewMode('registrants')}
@@ -397,11 +407,11 @@ function LotteryRunner() {
         )}
 
 
-        <div style={{ flex: 1, padding: '16px 28px 24px', display: 'flex', gap: '20px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '16px 28px 24px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px' }}>
 
           {/* Results panel — only show alongside the results view */}
           {results && viewMode === 'results' && (
-            <div style={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ width: isMobile ? '100%' : '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, padding: '20px', border: `1px solid ${theme.colors.border}` }}>
                 <div style={{ fontSize: '14px', fontWeight: '700', color: theme.colors.primary, fontFamily: theme.fonts.primary, marginBottom: '16px' }}>
                   Lottery Results
