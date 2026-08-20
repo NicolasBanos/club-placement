@@ -7,13 +7,13 @@ Built for Plantation Park Elementary School to serve 500+ families across three 
 ## Screenshots
 
 ### Coordinator Dashboard
-![Coordinator Dashboard](images/coordinator_dashboard.png)
+![Coordinator Dashboard](images/Coordinator_Dashboard.png)
 
 ### Teacher Dashboard
-![Teacher Dashboard](images/teacher_dashboard.png)
+![Teacher Dashboard](images/Teacher_Dashboard.png)
 
 ### Parent Dashboard
-![Parent Dashboard](images/parent_dashboard.png)
+![Parent Dashboard](images/Parent_Dashboard.png)
 
 ---
 
