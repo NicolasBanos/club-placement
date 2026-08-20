@@ -81,7 +81,7 @@ function TeacherDashboard() {
           </div>
         </div>
 
-        <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px', maxWidth: isMobile ? '100%' : '900px' }}>
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '24px 28px' }}>
           {loading ? (
             <div style={{ color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontSize: '13px' }}>Loading…</div>
           ) : clubs.length === 0 ? (
@@ -96,19 +96,19 @@ function TeacherDashboard() {
               {/* stat strip */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
                 <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border}`, padding: '16px' }}>
-                  <div style={{ fontSize: '24px', fontWeight: '800', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>{totalEnrolled}</div>
+                  <div style={{ fontSize: '26px', fontWeight: '800', color: theme.colors.primary, fontFamily: theme.fonts.primary }}>{totalEnrolled}</div>
                   <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                     <Users size={11} /> Enrolled
                   </div>
                 </div>
                 <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border}`, padding: '16px' }}>
-                  <div style={{ fontSize: '24px', fontWeight: '800', color: theme.colors.warning, fontFamily: theme.fonts.primary }}>{totalWaitlisted}</div>
+                  <div style={{ fontSize: '26px', fontWeight: '800', color: theme.colors.warning, fontFamily: theme.fonts.primary }}>{totalWaitlisted}</div>
                   <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                     <Clock size={11} /> Waitlisted
                   </div>
                 </div>
                 <div style={{ background: 'white', borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border}`, padding: '16px' }}>
-                  <div style={{ fontSize: '24px', fontWeight: '800', color: '#333', fontFamily: theme.fonts.primary }}>{Math.max(0, totalSpots - totalEnrolled)}</div>
+                  <div style={{ fontSize: '26px', fontWeight: '800', color: '#333', fontFamily: theme.fonts.primary }}>{Math.max(0, totalSpots - totalEnrolled)}</div>
                   <div style={{ fontSize: '11px', color: theme.colors.textMuted, fontFamily: theme.fonts.primary, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                     <TrendingUp size={11} /> Spots open
                   </div>
