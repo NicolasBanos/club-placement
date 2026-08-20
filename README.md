@@ -2,12 +2,18 @@
 
 A full-stack web application that automates after-school enrichment club enrollment for elementary schools — replacing a manual, paper-based lottery system with a fair, transparent digital process for registration, assignment, attendance, and communication.
 
-Built for Plantation Park Elementary School to serve 500+ families across three user roles: **Parents**, **Teachers**, and a school **Coordinator**.
+Built for Plantation Park Elementary School to serve 500+ families across three user roles: **Parents**, **Teachers**, and a school **Coordinator**. This repository is shared publicly as a portfolio piece — see [About This Project](#about-this-project) below for details.
 
-<!-- 
-📸 SCREENSHOT SPOT: Add a hero image or GIF here showing the app in action
-(e.g., the Coordinator Dashboard, or a quick click-through GIF)
--->
+## Screenshots
+
+### Coordinator Dashboard
+![Coordinator Dashboard](images/coordinator_dashboard.png)
+
+### Teacher Dashboard
+![Teacher Dashboard](images/teacher_dashboard.png)
+
+### Parent Dashboard
+![Parent Dashboard](images/parent_dashboard.png)
 
 ---
 
@@ -50,14 +56,6 @@ ClubsForKids digitizes the entire workflow: online registration with ranked club
 - Fully responsive — works cleanly on desktop and mobile, including an adaptive messaging interface and collapsible navigation
 - Real-time unread message and pending-action badges
 - Role-based access control enforced at the API level, not just hidden in the UI
-
-<!--
-📸 SCREENSHOT SPOT: Add 2-4 screenshots here in a grid or list, e.g.:
-- Coordinator Dashboard
-- Lottery Runner
-- Parent's My Children page
-- Mobile messaging view
--->
 
 ---
 
@@ -140,6 +138,11 @@ App available at `http://localhost:5173`
 
 ---
 
-## License
+## About This Project
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+ClubsForKids was built for Plantation Park Elementary School to replace their manual, paper-based after-school club enrollment process. This repository is shared publicly to demonstrate the technical work involved — please do not deploy, redistribute, or reuse this code without permission.
+
+If you're interested in learning more about the project or discussing it, feel free to reach out:
+
+- **Email:** NicolasBanos01@gmail.com
+- **LinkedIn:** [linkedin.com/in/nicolas-banos-855b612a6](https://www.linkedin.com/in/nicolas-banos-855b612a6)
